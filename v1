@@ -3,417 +3,559 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Shelf Planner</title>
+<title>Storage Planner</title>
 <style>
   body {
     margin: 0;
     font-family: Arial, sans-serif;
     background: #f8f9fa;
-    background-image:
-      radial-gradient(circle at 10% 20%, rgba(91, 124, 153, 0.03) 0%, transparent 50%),
-      radial-gradient(circle at 80% 80%, rgba(74, 101, 131, 0.03) 0%, transparent 50%),
-      radial-gradient(circle at 40% 60%, rgba(91, 124, 153, 0.02) 0%, transparent 50%);
   }
   header {
-    background-color: #2C4F6F;
+    background-color: #2c4f6f;
     color: white;
+    padding: 20px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 20px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-  }
-  header img {
-    height: 40px;
-    object-fit: contain;
-    user-select: none;
+    position: relative;
   }
   header h1 {
-    margin: 0;
     font-size: 32px;
     font-weight: bold;
+    margin: 0;
     text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
     flex-grow: 1;
     text-align: center;
   }
-  main {
-    display: flex;
-    gap: 20px;
-    padding: 20px;
+  .logo {
+    height: 40px;
+    user-select: none;
   }
-  #library, #controls {
-    background: white;
-    border-radius: 6px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  .logo-left {
+    margin-right: auto;
+  }
+  .logo-right {
+    margin-left: auto;
+  }
+  #main {
+    display: flex;
+    gap: 1rem;
+    padding: 10px;
+  }
+  #controls {
+    width: 220px;
+    background: #f8f9fa;
+    border: 2px solid #5b7c99;
+    border-radius: 8px;
     padding: 12px;
-    height: 80vh;
+    box-sizing: border-box;
+    box-shadow: 0 2px 8px rgba(91,124,153,0.2);
+    user-select: none;
+    height: 600px;
     overflow-y: auto;
   }
   #library {
-    width: 280px;
-  }
-  #controls {
-    width: 180px;
+    width: 350px;
+    background: white;
+    border: 2px solid #5b7c99;
+    border-radius: 8px;
+    padding: 8px;
+    box-sizing: border-box;
+    box-shadow: 0 2px 8px rgba(91,124,153,0.2);
+    user-select: none;
+    height: 600px;
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
   }
-  #shelves {
-    flex-grow: 1;
-    background: white;
-    border-radius: 6px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    padding: 12px;
-    height: 80vh;
-    overflow-y: auto;
-    position: relative;
+  #library h3 {
+    color: #2c4f6f;
+    border-bottom: 2px solid #5b7c99;
+    margin: 0 0 12px 0;
+    padding-bottom: 8px;
   }
-  h2 {
-    margin-top: 0;
+  #library .sort-container {
+    margin-bottom: 12px;
+    text-align: center;
   }
-  button {
+  #library .sort-container button {
+    background: #2c4f6f;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 6px 12px;
+    font-weight: bold;
     cursor: pointer;
-    border-radius: 4px;
-    border: 1px solid #5B7C99;
-    background-color: #e6f0ff;
-    color: #2C4F6F;
-    padding: 8px 16px;
-    font-size: 14px;
-    margin-bottom: 10px;
+    transition: background-color 0.2s ease;
   }
-  #objects-list {
+  #library .sort-container button:hover {
+    background-color: #3b678e;
+  }
+  #library .object-list {
+    flex-grow: 1;
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
+    overflow-y: auto;
   }
-  .object-item {
-    box-sizing: border-box;
-    border: 1px solid #444;
-    border-radius: 4px;
-    box-shadow: 1px 1px 3px rgba(0,0,0,0.1);
+  .object-card {
+    background: #cce0ff;
+    border-radius: 5px;
+    border: 1px solid #5b7c99;
     padding: 6px;
-    font-weight: bold;
-    font-size: 12px;
-    color: #000;
+    width: 70px;
+    font-size: 10px;
+    cursor: grab;
     user-select: none;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    cursor: grab;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+  }
+  .object-card .number {
+    font-weight: bold;
+    font-size: 12px;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
     text-align: center;
   }
-  .object-info {
-    font-weight: normal;
-    font-size: 10px;
-    white-space: normal;
+  .object-card .dims {
+    font-size: 9px;
+    line-height: 1.2;
+    text-align: center;
   }
-  .shelving-unit {
-    position: relative;
-    margin-bottom: 30px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    padding: 10px;
-    min-height: 150px;
+  #report-buttons {
+    margin-top: 10px;
+    display: flex;
+    gap: 10px;
+    justify-content: center;
   }
-  .shelf-area {
+  #report-buttons button {
+    background: #2c4f6f;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 6px 12px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+  #report-buttons button:hover {
+    background-color: #3b678e;
+  }
+  #units {
+    flex-grow: 1;
+    background: white;
+    border: 2px solid #5b7c99;
+    border-radius: 8px;
+    padding: 16px;
+    box-sizing: border-box;
+    box-shadow: 0 2px 8px rgba(91,124,153,0.2);
+    max-height: 600px;
+    overflow-y: auto;
+  }
+  .unit {
+    margin-bottom: 2rem;
+  }
+  .unit h4 {
+    margin: 0 0 12px 0;
+    font-size: 18px;
+    color: #2c4f6f;
+    font-weight: bold;
+  }
+  .shelf {
+    border-radius: 4px;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 6px;
     position: relative;
-    border: 1px solid #aaa;
-    background-color: #f0f5f9;
-    overflow: hidden;
+  }
+  .shelf.top {
+    border: 3px solid #7cb342;
+    background-color: #fefefe;
+  }
+  .shelf.bottom {
+    border: 3px solid #5c9ead;
+    background-color: #fefefe;
+  }
+  .shelf.too-tall {
+    background-color: #ffe6e6 !important;
+    border-color: #e74c3c !important;
   }
   .placed-object {
     position: absolute;
-    border: 1px solid #000;
-    border-radius: 4px;
-    padding: 6px;
-    font-weight: bold;
-    font-size: 12px;
-    color: #000;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    border: 1px solid black;
+    background-color: #90caf9;
+    padding: 2px 4px;
+    font-size: 10px;
+    color: black;
+    border-radius: 3px;
+    box-sizing: border-box;
+    cursor: grab;
     user-select: none;
+  }
+  label.shelf-height-label {
+    display: block;
+    margin-bottom: 16px;
+    color: #2c4f6f;
+    font-weight: 500;
+  }
+  label.shelf-height-label input {
+    width: 60px;
+    padding: 4px 8px;
+    border: 1px solid #5b7c99;
+    border-radius: 4px;
+    background-color: #f8f9fa;
+    margin-left: 6px;
+  }
+  #file-upload {
+    margin-bottom: 10px;
+    width: 100%;
   }
 </style>
 </head>
 <body>
+
 <header>
-  <img src="https://upload.wikimedia.org/wikipedia/en/thumb/4/47/American_Museum_of_Natural_History_logo.svg/1280px-American_Museum_of_Natural_History_logo.svg.png" alt="AMNH Logo" />
-  <h1>Shelf Planner</h1>
-  <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/IMLS_logo.svg/2560px-IMLS_logo.svg.png" alt="IMLS Logo" />
+  <img src="https://upload.wikimedia.org/wikipedia/commons/6/66/AMNH_Logo_2018.svg" alt="AMNH Logo" class="logo logo-left" />
+  <h1>Storage Planner</h1>
+  <img src="https://upload.wikimedia.org/wikipedia/commons/2/2e/IMLS_Logo.svg" alt="IMLS Logo" class="logo logo-right" />
 </header>
-<main>
-  <section id="library">
-    <h2>Library</h2>
-    <button id="sortBtn" title="Sort by Number">Sort by: Number</button>
-    <div id="objects-list"></div>
-    <input type="file" id="csvFile" accept=".csv" />
-  </section>
-  <section id="controls">
-    <h2>Controls</h2>
-    <button id="addUnitBtn">Add Unit</button>
-    <button id="exportReportBtn">Export Report (Images & Tables)</button>
-    <button id="exportCsvBtn">Export CSV</button>
-  </section>
-  <section id="shelves">
-    <h2>Shelving Units</h2>
-    <div id="shelving-units"></div>
-  </section>
-</main>
 
-<!-- Load html2canvas CDN -->
+<div id="main">
+
+  <div id="controls">
+    <h3>Controls</h3>
+    <input type="file" id="file-upload" accept=".csv" />
+    <div id="info-msg" style="font-size: 12px; font-style: italic; color: #666;">Upload CSV to load storage units</div>
+  </div>
+
+  <div id="library">
+    <h3>Library</h3>
+    <div class="sort-container">
+      <button id="sort-btn">Sort by: Number</button>
+    </div>
+    <div class="object-list" id="object-list"></div>
+    <div id="report-buttons">
+      <button id="export-report-btn">Export Report (PNG)</button>
+      <button id="export-csv-btn">Export CSV</button>
+    </div>
+  </div>
+
+  <div id="units"></div>
+</div>
+
+<!-- html2canvas library for screenshot export -->
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-
 <script>
-  const SCALE = 5;
-  const SHELF_WIDTH_IN = 60;
+(() => {
+  // Constants
+  const SCALE = 4;  // pixels per inch
+  const SHELF_WIDTH_IN = 36;
+  const SHELF_DEPTH_IN = 18;
   const TOTAL_SHELF_HEIGHT = 72;
 
-  const colors = {
-    Box: { Large: "#ffcc80", Small: "#ffe0b2" },
-    Container: { Plastic: "#90caf9", Metal: "#64b5f6" },
-    Other: { Misc: "#b0bec5" },
-  };
+  // State
+  let objects = [];
+  let units = [];
+  let sortBy = "number"; // or "height"
 
-  let units = [{ id: 1, topHeight: 24, bottomHeight: 36 }];
-  let placedObjects = [];
-  let sortedObjects = [];
-  let sortMode = "number";
+  // Elements
+  const fileInput = document.getElementById('file-upload');
+  const infoMsg = document.getElementById('info-msg');
+  const objectListEl = document.getElementById('object-list');
+  const unitsEl = document.getElementById('units');
+  const sortBtn = document.getElementById('sort-btn');
+  const exportReportBtn = document.getElementById('export-report-btn');
+  const exportCsvBtn = document.getElementById('export-csv-btn');
 
-  const objectsListEl = document.getElementById("objects-list");
-  const shelvingUnitsEl = document.getElementById("shelving-units");
-  const sortBtn = document.getElementById("sortBtn");
-  const addUnitBtn = document.getElementById("addUnitBtn");
-  const exportReportBtn = document.getElementById("exportReportBtn");
-  const exportCsvBtn = document.getElementById("exportCsvBtn");
-  const csvFileInput = document.getElementById("csvFile");
-
-  // Helper to create a DOM object item in library or shelf
-  function createObjectElement(obj, isPlaced = false) {
-    const div = document.createElement("div");
-    div.classList.add(isPlaced ? "placed-object" : "object-item");
-
-    // size in px based on width/depth inches
-    div.style.width = obj.width * SCALE + "px";
-    div.style.height = obj.depth * SCALE + "px";
-
-    // color
-    const bgColor = (colors[obj.type] && colors[obj.type][obj.objectType]) || "#ccc";
-    div.style.backgroundColor = bgColor;
-
-    if (isPlaced) {
-      div.style.top = obj.y + "px";
-      div.style.left = obj.x + "px";
-    }
-
-    div.title = `Number: ${obj.number}`;
-    div.textContent = obj.number;
-
-    if (!isPlaced) {
-      const info = document.createElement("div");
-      info.className = "object-info";
-      info.innerHTML = `H: ${obj.height}"<br>W: ${obj.width}"<br>D: ${obj.depth}"`;
-      div.appendChild(info);
-    }
-    return div;
-  }
-
-  function renderLibrary() {
-    objectsListEl.innerHTML = "";
-    sortedObjects.forEach(obj => {
-      const el = createObjectElement(obj);
-      objectsListEl.appendChild(el);
-    });
-  }
-
-  function renderShelvingUnits() {
-    shelvingUnitsEl.innerHTML = "";
-    units.forEach(unit => {
-      const unitDiv = document.createElement("div");
-      unitDiv.className = "shelving-unit";
-
-      const title = document.createElement("h3");
-      title.textContent = "Shelving Unit " + unit.id;
-      unitDiv.appendChild(title);
-
-      const shelfArea = document.createElement("div");
-      shelfArea.className = "shelf-area";
-      shelfArea.style.width = SHELF_WIDTH_IN * SCALE + "px";
-      shelfArea.style.height = TOTAL_SHELF_HEIGHT * SCALE + "px";
-
-      // Add placed objects for this unit
-      placedObjects
-        .filter(o => o.unitId === unit.id)
-        .forEach(obj => {
-          const objEl = createObjectElement(obj, true);
-          shelfArea.appendChild(objEl);
-        });
-
-      unitDiv.appendChild(shelfArea);
-      shelvingUnitsEl.appendChild(unitDiv);
-    });
-  }
-
-  function sortObjects() {
-    if (sortMode === "number") {
-      sortedObjects.sort((a,b) => a.number.localeCompare(b.number));
-    } else {
-      sortedObjects.sort((a,b) => a.height - b.height);
-    }
-  }
-
-  sortBtn.onclick = () => {
-    sortMode = sortMode === "number" ? "height" : "number";
-    sortBtn.textContent = `Sort by: ${sortMode === "number" ? "Number" : "Height"}`;
-    sortBtn.title = `Sort by ${sortMode === "number" ? "Height" : "Number"}`;
-    sortObjects();
-    renderLibrary();
-  };
-
-  addUnitBtn.onclick = () => {
-    const newId = units.length + 1;
-    units.push({ id: newId, topHeight: 24, bottomHeight: 36 });
-    renderShelvingUnits();
-  };
-
-  // CSV Export
-  exportCsvBtn.onclick = () => {
-    if (sortedObjects.length === 0) {
-      alert("No objects to export!");
-      return;
-    }
-    const header = ["ID", "Number", "Height", "Width", "Depth", "Type", "ObjectType"];
-    const rows = sortedObjects.map(obj => [
-      obj.id, obj.number, obj.height, obj.width, obj.depth, obj.type, obj.objectType
-    ]);
-    const csvContent =
-      "data:text/csv;charset=utf-8," +
-      [header, ...rows].map(e => e.join(",")).join("\n");
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "storage_objects.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  // Export Report (images + tables)
-  exportReportBtn.onclick = async () => {
-    if (units.length === 0) {
-      alert("No shelving units to export.");
-      return;
-    }
-
-    try {
-      // Capture images of each shelving unit
-      const imagesData = [];
-      for (const unit of units) {
-        const unitEl = [...shelvingUnitsEl.children].find(div => {
-          return div.querySelector("h3")?.textContent === `Shelving Unit ${unit.id}`;
-        });
-        if (!unitEl) continue;
-        const canvas = await html2canvas(unitEl, { backgroundColor: null });
-        imagesData.push(canvas.toDataURL("image/png"));
-      }
-
-      const reportWindow = window.open("", "_blank");
-      if (!reportWindow) {
-        alert("Please allow popups for this site.");
-        return;
-      }
-
-      reportWindow.document.write("<html><head><title>Storage Planner Report</title></head><body>");
-      reportWindow.document.write("<h1>Storage Planner Report</h1>");
-
-      units.forEach((unit, idx) => {
-        reportWindow.document.write(`<h2>Shelving Unit ${unit.id}</h2>`);
-        if (imagesData[idx]) {
-          reportWindow.document.write(
-            `<img src="${imagesData[idx]}" alt="Shelving Unit ${unit.id}" style="max-width:100%;border:1px solid #ccc;margin-bottom:20px;" />`
-          );
-        }
-        reportWindow.document.write("<table border='1' cellpadding='5' cellspacing='0' style='border-collapse: collapse;'>");
-        reportWindow.document.write(
-          "<tr><th>ID</th><th>Number</th><th>Height</th><th>Width</th><th>Depth</th><th>Type</th><th>ObjectType</th></tr>"
-        );
-        const objsInUnit = placedObjects.filter(o => o.unitId === unit.id);
-        objsInUnit.forEach(o => {
-          reportWindow.document.write(
-            `<tr><td>${o.id}</td><td>${o.number}</td><td>${o.height}</td><td>${o.width}</td><td>${o.depth}</td><td>${o.type}</td><td>${o.objectType}</td></tr>`
-          );
-        });
-        reportWindow.document.write("</table>");
-      });
-      reportWindow.document.write("</body></html>");
-      reportWindow.document.close();
-    } catch (e) {
-      alert("Failed to generate report: " + e.message);
-    }
-  };
-
-  // Load example objects
-  function loadExampleObjects() {
-    // Sample objects with unique IDs and numbers
-    sortedObjects = [
-      { id: 1, number: "001", height: 10, width: 12, depth: 8, type: "Box", objectType: "Large" },
-      { id: 2, number: "002", height: 8, width: 10, depth: 6, type: "Container", objectType: "Plastic" },
-      { id: 3, number: "003", height: 12, width: 14, depth: 10, type: "Box", objectType: "Small" },
-      { id: 4, number: "004", height: 7, width: 9, depth: 6, type: "Container", objectType: "Metal" }
-    ];
-    sortObjects();
-    renderLibrary();
-  }
-
-  // For demo: place objects randomly in units
-  function placeObjectsRandomly() {
-    placedObjects = [];
-    sortedObjects.forEach((obj, idx) => {
-      const unitId = units[(idx % units.length)].id;
-      // place roughly randomly within shelf area
-      obj.x = Math.random() * (SHELF_WIDTH_IN * SCALE - obj.width * SCALE);
-      obj.y = Math.random() * (TOTAL_SHELF_HEIGHT * SCALE - obj.depth * SCALE);
-      obj.unitId = unitId;
-      placedObjects.push({...obj});
-    });
-    renderShelvingUnits();
-  }
-
-  // CSV Import (optional)
-  csvFileInput.addEventListener("change", (evt) => {
-    const file = evt.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = e => {
-      const text = e.target.result;
-      parseCsv(text);
-    };
-    reader.readAsText(file);
-  });
-
-  function parseCsv(text) {
-    const lines = text.trim().split("\n");
-    const headers = lines.shift().split(",");
-    sortedObjects = lines.map(line => {
+  // Helper: parse CSV string to array of objects
+  function parseCSV(text) {
+    const lines = text.trim().split('\n');
+    const headers = lines[0].split(',').map(h => h.trim());
+    return lines.slice(1).map(line => {
+      const parts = line.split(',').map(p => p.trim());
       const obj = {};
-      const values = line.split(",");
-      headers.forEach((header, i) => {
-        obj[header.trim()] = values[i].trim();
+      headers.forEach((h, i) => {
+        obj[h] = parts[i];
       });
-      // Convert numbers
-      obj.id = parseInt(obj.id);
-      obj.height = parseFloat(obj.height);
-      obj.width = parseFloat(obj.width);
-      obj.depth = parseFloat(obj.depth);
       return obj;
     });
-    sortObjects();
-    renderLibrary();
   }
 
-  // Init
-  loadExampleObjects();
-  placeObjectsRandomly();
+  // Validate and transform raw CSV data into structured objects and units
+  function processCSVData(data) {
+    objects = [];
+    units = [];
+
+    // Temporary lookup for units by id
+    const unitMap = {};
+
+    data.forEach(row => {
+      // Validate required fields
+      if (!row.id || !row.number || !row.height || !row.width || !row.depth || !row.unitId) return;
+
+      // Convert numeric fields
+      const height = parseFloat(row.height);
+      const width = parseFloat(row.width);
+      const depth = parseFloat(row.depth);
+      const topHeight = parseFloat(row.topHeight);
+      const bottomHeight = parseFloat(row.bottomHeight);
+
+      // Ignore rows with invalid numbers
+      if (isNaN(height) || isNaN(width) || isNaN(depth)) return;
+
+      // Add unit if new
+      if (!unitMap[row.unitId]) {
+        unitMap[row.unitId] = {
+          id: row.unitId,
+          topHeight: !isNaN(topHeight) ? topHeight : TOTAL_SHELF_HEIGHT / 2,
+          bottomHeight: !isNaN(bottomHeight) ? bottomHeight : TOTAL_SHELF_HEIGHT / 2,
+          shelves: []
+        };
+      }
+
+      // Add object
+      objects.push({
+        id: row.id,
+        number: row.number,
+        height,
+        width,
+        depth,
+        unitId: row.unitId,
+      });
+    });
+
+    units = Object.values(unitMap);
+  }
+
+  // Render objects in Library
+  function renderLibraryObjects() {
+    // Sort objects
+    if (sortBy === "number") {
+      objects.sort((a, b) => a.number.localeCompare(b.number));
+    } else if (sortBy === "height") {
+      objects.sort((a, b) => b.height - a.height);
+    }
+
+    objectListEl.innerHTML = '';
+    objects.forEach(obj => {
+      const card = document.createElement('div');
+      card.className = 'object-card';
+      card.title = `${obj.number} (${obj.height}"H x ${obj.width}"W x ${obj.depth}"D)`;
+
+      const numberDiv = document.createElement('div');
+      numberDiv.className = 'number';
+      numberDiv.textContent = obj.number;
+      card.appendChild(numberDiv);
+
+      const dimsDiv = document.createElement('div');
+      dimsDiv.className = 'dims';
+      dimsDiv.innerHTML = `H: ${obj.height.toFixed(1)}<br>W: ${obj.width.toFixed(1)}<br>D: ${obj.depth.toFixed(1)}`;
+      card.appendChild(dimsDiv);
+
+      objectListEl.appendChild(card);
+    });
+  }
+
+  // Render shelving units with shelves and objects
+  function renderUnits() {
+    unitsEl.innerHTML = '';
+
+    units.forEach(unit => {
+      const unitDiv = document.createElement('div');
+      unitDiv.className = 'unit';
+
+      const unitTitle = document.createElement('h4');
+      unitTitle.textContent = `Unit ${unit.id}`;
+      unitDiv.appendChild(unitTitle);
+
+      // Top Shelf
+      const topShelfObjects = objects.filter(o => o.unitId === unit.id && o.shelf === 'top');
+      const topShelfDiv = document.createElement('div');
+      topShelfDiv.className = 'shelf top';
+      topShelfDiv.style.width = `${SHELF_WIDTH_IN * SCALE}px`;
+      topShelfDiv.style.height = `${unit.topHeight * SCALE}px`;
+      topShelfDiv.textContent = "Top Shelf";
+      topShelfDiv.style.position = "relative";
+      unitDiv.appendChild(topShelfDiv);
+
+      // Bottom Shelf
+      const bottomShelfObjects = objects.filter(o => o.unitId === unit.id && o.shelf === 'bottom');
+      const bottomShelfDiv = document.createElement('div');
+      bottomShelfDiv.className = 'shelf bottom';
+      bottomShelfDiv.style.width = `${SHELF_WIDTH_IN * SCALE}px`;
+      bottomShelfDiv.style.height = `${unit.bottomHeight * SCALE}px`;
+      bottomShelfDiv.textContent = "Bottom Shelf";
+      bottomShelfDiv.style.position = "relative";
+      unitDiv.appendChild(bottomShelfDiv);
+
+      unitsEl.appendChild(unitDiv);
+    });
+  }
+
+  // Export report as PNG screenshots of all units + tables
+  async function exportReport() {
+    // Disable export button while exporting
+    exportReportBtn.disabled = true;
+    exportReportBtn.textContent = "Exporting...";
+
+    // For each unit, render image, then table of objects in that unit
+    const images = [];
+
+    for (const unit of units) {
+      // Render unit div separately to a hidden container for screenshot
+      const container = document.createElement('div');
+      container.style.background = 'white';
+      container.style.padding = '20px';
+      container.style.marginBottom = '40px';
+      container.style.width = `${SHELF_WIDTH_IN * SCALE + 40}px`;
+      container.style.border = '2px solid #5b7c99';
+      container.style.borderRadius = '8px';
+
+      // Unit title
+      const title = document.createElement('h3');
+      title.textContent = `Unit ${unit.id}`;
+      title.style.color = '#2c4f6f';
+      container.appendChild(title);
+
+      // Shelves: top + bottom rectangles
+      const topShelf = document.createElement('div');
+      topShelf.style.width = `${SHELF_WIDTH_IN * SCALE}px`;
+      topShelf.style.height = `${unit.topHeight * SCALE}px`;
+      topShelf.style.border = '3px solid #7cb342';
+      topShelf.style.backgroundColor = '#fefefe';
+      topShelf.style.marginBottom = '8px';
+      container.appendChild(topShelf);
+
+      const bottomShelf = document.createElement('div');
+      bottomShelf.style.width = `${SHELF_WIDTH_IN * SCALE}px`;
+      bottomShelf.style.height = `${unit.bottomHeight * SCALE}px`;
+      bottomShelf.style.border = '3px solid #5c9ead';
+      bottomShelf.style.backgroundColor = '#fefefe';
+      container.appendChild(bottomShelf);
+
+      // Use html2canvas to get image of shelves
+      const imgCanvas = await html2canvas(container, { backgroundColor: '#ffffff' });
+      const imgDataUrl = imgCanvas.toDataURL('image/png');
+
+      images.push({ unitId: unit.id, dataUrl: imgDataUrl });
+    }
+
+    // Create report window with images and table
+    const reportWindow = window.open('', '_blank');
+    reportWindow.document.write(`<html><head><title>Export Report</title></head><body>`);
+    reportWindow.document.write(`<h1>Storage Planner Report</h1>`);
+
+    // Add images
+    images.forEach(img => {
+      reportWindow.document.write(`<h2>Unit ${img.unitId}</h2>`);
+      reportWindow.document.write(`<img src="${img.dataUrl}" style="max-width: 600px; border: 1px solid #ccc; margin-bottom: 20px;" />`);
+    });
+
+    // Add table of objects
+    reportWindow.document.write(`<h2>All Objects</h2>`);
+    reportWindow.document.write(`<table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse; font-family: Arial; font-size: 14px;">`);
+    reportWindow.document.write(`<thead><tr><th>Number</th><th>Height</th><th>Width</th><th>Depth</th><th>Unit</th></tr></thead><tbody>`);
+    objects.forEach(obj => {
+      reportWindow.document.write(`<tr>`);
+      reportWindow.document.write(`<td>${obj.number}</td>`);
+      reportWindow.document.write(`<td>${obj.height.toFixed(1)}</td>`);
+      reportWindow.document.write(`<td>${obj.width.toFixed(1)}</td>`);
+      reportWindow.document.write(`<td>${obj.depth.toFixed(1)}</td>`);
+      reportWindow.document.write(`<td>${obj.unitId}</td>`);
+      reportWindow.document.write(`</tr>`);
+    });
+    reportWindow.document.write(`</tbody></table>`);
+
+    reportWindow.document.write(`</body></html>`);
+    reportWindow.document.close();
+
+    exportReportBtn.disabled = false;
+    exportReportBtn.textContent = "Export Report (PNG)";
+  }
+
+  // Export results as CSV file
+  function exportCSV() {
+    if (objects.length === 0) {
+      alert("No objects to export.");
+      return;
+    }
+
+    const headers = ["id","number","height","width","depth","unitId"];
+    const csvRows = [];
+    csvRows.push(headers.join(','));
+
+    objects.forEach(o => {
+      const row = [
+        o.id,
+        o.number,
+        o.height.toFixed(2),
+        o.width.toFixed(2),
+        o.depth.toFixed(2),
+        o.unitId
+      ];
+      csvRows.push(row.join(','));
+    });
+
+    const csvString = csvRows.join('\n');
+    const blob = new Blob([csvString], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'storage_planner_export.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // Toggle sorting and rerender library
+  function toggleSort() {
+    if (sortBy === 'number') {
+      sortBy = 'height';
+      sortBtn.textContent = 'Sort by: Height';
+    } else {
+      sortBy = 'number';
+      sortBtn.textContent = 'Sort by: Number';
+    }
+    renderLibraryObjects();
+  }
+
+  // Initialize
+  function init() {
+    sortBtn.addEventListener('click', toggleSort);
+    exportReportBtn.addEventListener('click', exportReport);
+    exportCsvBtn.addEventListener('click', exportCSV);
+
+    fileInput.addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = evt => {
+        try {
+          const csvData = parseCSV(evt.target.result);
+          processCSVData(csvData);
+          renderLibraryObjects();
+          renderUnits();
+          infoMsg.textContent = `Loaded ${objects.length} objects across ${units.length} units.`;
+        } catch (err) {
+          infoMsg.textContent = 'Error parsing CSV file.';
+          console.error(err);
+        }
+      };
+      reader.readAsText(file);
+    });
+  }
+
+  // Start the app
+  init();
+})();
 </script>
+
 </body>
 </html>
