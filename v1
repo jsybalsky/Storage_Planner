@@ -1,0 +1,977 @@
+import React, { useState, useRef, useCallback, useMemo } from "react";
+
+const ShelfPlanner = () => {
+  const SHELF_WIDTH_IN = 96; // 8 ft * 12 in
+  const SHELF_DEPTH_IN = 48; // 4 ft * 12 in
+  const SCALE = 4; // pixels per inch
+  const TOTAL_SHELF_HEIGHT = 74; // fixed combined shelf height in inches
+
+  const [units, setUnits] = useState([
+    { id: 1, topHeight: 37, bottomHeight: 37 }, // sum 74
+  ]);
+  const [objects, setObjects] = useState([]);
+  const [placedObjects, setPlacedObjects] = useState([]);
+  const [draggedObject, setDraggedObject] = useState(null);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [sortMode, setSortMode] = useState("number"); // 'number' or 'height'
+  const [detectedTypes, setDetectedTypes] = useState(new Set());
+  const [detectedObjects, setDetectedObjects] = useState(new Set());
+  const fileInputRef = useRef(null);
+
+  // Generate colors dynamically based on detected types and objects
+  const generateColors = () => {
+    const typeColors = {
+      base: ["#87CEEB", "#90EE90", "#FFB6C1", "#DDA0DD", "#F0E68C", "#B0C4DE"],
+      dark: ["#4682B4", "#228B22", "#FF69B4", "#9370DB", "#DAA520", "#6495ED"],
+      darker: ["#191970", "#006400", "#C71585", "#6A0DAD", "#B8860B", "#4169E1"],
+      light: ["#E0F7FF", "#E6FFE6", "#FFE4E1", "#E6E6FA", "#FFFACD", "#E6F3FF"]
+    };
+
+    const colors = {};
+    const typeArray = Array.from(detectedTypes).sort();
+    
+    typeArray.forEach((type, typeIndex) => {
+      colors[type] = {};
+      const objectArray = Array.from(detectedObjects).sort();
+      
+      objectArray.forEach((obj, objIndex) => {
+        const colorIndex = typeIndex % typeColors.base.length;
+        if (objIndex === 0) colors[type][obj] = typeColors.base[colorIndex];
+        else if (objIndex === 1) colors[type][obj] = typeColors.dark[colorIndex];
+        else if (objIndex === 2) colors[type][obj] = typeColors.darker[colorIndex];
+        else if (objIndex === 3) colors[type][obj] = typeColors.light[colorIndex];
+        else {
+          // For more than 4 objects, generate variations
+          const hue = (colorIndex * 60 + objIndex * 15) % 360;
+          const lightness = 50 + (objIndex % 3) * 15;
+          colors[type][obj] = `hsl(${hue}, 70%, ${lightness}%)`;
+        }
+      });
+    });
+
+    // Add default "Other" type if not present
+    if (!colors["Other"]) {
+      colors["Other"] = {};
+      const objectArray = Array.from(detectedObjects).sort();
+      objectArray.forEach((obj, objIndex) => {
+        if (objIndex === 0) colors["Other"][obj] = "#D3D3D3";
+        else if (objIndex === 1) colors["Other"][obj] = "#A9A9A9";
+        else if (objIndex === 2) colors["Other"][obj] = "#808080";
+        else if (objIndex === 3) colors["Other"][obj] = "#F0F0F0";
+        else colors["Other"][obj] = "#C0C0C0";
+      });
+    }
+
+    return colors;
+  };
+
+  const colors = useMemo(() => generateColors(), [detectedTypes, detectedObjects]);
+
+  const addUnit = () => {
+    const newId =
+      units.length > 0 ? Math.max(...units.map((u) => u.id)) + 1 : 1;
+    setUnits([...units, { id: newId, topHeight: 37, bottomHeight: 37 }]);
+  };
+
+  const updateShelfHeight = (unitId, isTop, newHeight) => {
+    const height = Math.max(
+      1,
+      Math.min(TOTAL_SHELF_HEIGHT - 1, parseInt(newHeight) || 1)
+    );
+    setUnits(
+      units.map((unit) =>
+        unit.id === unitId
+          ? isTop
+            ? {
+                ...unit,
+                topHeight: height,
+                bottomHeight: TOTAL_SHELF_HEIGHT - height,
+              }
+            : {
+                ...unit,
+                topHeight: TOTAL_SHELF_HEIGHT - height,
+                bottomHeight: height,
+              }
+          : unit
+      )
+    );
+  };
+
+  const parseCSV = (csvText) => {
+    const lines = csvText.trim().split("\n");
+    const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+
+    const numberIndex = headers.findIndex((h) => h.includes("number"));
+    const typeIndex = headers.findIndex((h) => h.includes("type"));
+    const objectIndex = headers.findIndex((h) => h.includes("object"));
+    const heightIndex = headers.findIndex((h) => h.includes("height"));
+    const widthIndex = headers.findIndex((h) => h.includes("width"));
+    const depthIndex = headers.findIndex((h) => h.includes("depth"));
+
+    const newTypes = new Set();
+    const newObjects = new Set();
+    
+    const parsedObjects = lines.slice(1).map((line, index) => {
+      const values = line.split(",").map((v) => v.trim());
+
+      let type = values[typeIndex] || "Other";
+      let objectType = values[objectIndex] || "Unknown";
+      
+      // Add to detected sets
+      newTypes.add(type);
+      newObjects.add(objectType);
+
+      return {
+        id: `obj-${index}`,
+        number: values[numberIndex] || `Item ${index + 1}`,
+        height: parseFloat(values[heightIndex]) || 1,
+        width: parseFloat(values[widthIndex]) || 1,
+        depth: parseFloat(values[depthIndex]) || 1,
+        type,
+        objectType,
+        canRotate: true, // All objects can rotate in generic version
+      };
+    });
+
+    // Update detected types and objects
+    setDetectedTypes(newTypes);
+    setDetectedObjects(newObjects);
+    
+    return parsedObjects;
+  };
+
+  const handleFileUpload = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const csvData = parseCSV(e.target.result);
+        setObjects(csvData);
+        setPlacedObjects([]);
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  const rotateObject = (objectId) => {
+    setObjects((prev) =>
+      prev.map((obj) =>
+        obj.id === objectId && obj.canRotate
+          ? { ...obj, width: obj.depth, depth: obj.width }
+          : obj
+      )
+    );
+    setPlacedObjects((prev) =>
+      prev.map((obj) =>
+        obj.id === objectId && obj.canRotate
+          ? { ...obj, width: obj.depth, depth: obj.width }
+          : obj
+      )
+    );
+  };
+
+  const handleMouseDown = (e, object, isPlaced = false) => {
+    e.preventDefault();
+    const rect = e.currentTarget.getBoundingClientRect();
+    setDraggedObject({
+      ...object,
+      wasPlaced: isPlaced,
+      originalShelfId: object.shelfId,
+      x: rect.left,
+      y: rect.top,
+    });
+    setDragOffset({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    });
+  };
+
+  const handleMouseMove = useCallback(
+    (e) => {
+      if (!draggedObject) return;
+      const x = e.clientX - dragOffset.x;
+      const y = e.clientY - dragOffset.y;
+      setDraggedObject((prev) => ({ ...prev, x, y }));
+    },
+    [draggedObject, dragOffset]
+  );
+
+  const handleMouseUp = useCallback(() => {
+    if (!draggedObject) return;
+
+    const shelves = document.querySelectorAll(".shelf");
+    let droppedOnShelf = false;
+
+    shelves.forEach((shelf) => {
+      const rect = shelf.getBoundingClientRect();
+      const mouseX = draggedObject.x + dragOffset.x;
+      const mouseY = draggedObject.y + dragOffset.y;
+
+      if (
+        mouseX >= rect.left &&
+        mouseX <= rect.right &&
+        mouseY >= rect.top &&
+        mouseY <= rect.bottom
+      ) {
+        const shelfId = shelf.dataset.shelfId;
+        const [unitId, position] = shelfId.split("-");
+        const unit = units.find((u) => u.id === parseInt(unitId));
+        const shelfHeight =
+          position === "top" ? unit.topHeight : unit.bottomHeight;
+
+        if (draggedObject.height <= shelfHeight) {
+          const objectWidthPx = draggedObject.width * SCALE;
+          const objectDepthPx = draggedObject.depth * SCALE;
+
+          let objX = mouseX - rect.left - dragOffset.x;
+          let objY = mouseY - rect.top - dragOffset.y;
+
+          objX = Math.max(0, Math.min(objX, rect.width - objectWidthPx));
+          objY = Math.max(0, Math.min(objY, rect.height - objectDepthPx));
+
+          if (draggedObject.wasPlaced) {
+            setPlacedObjects((prev) =>
+              prev.filter((obj) => obj.id !== draggedObject.id)
+            );
+          } else {
+            setObjects((prev) =>
+              prev.filter((obj) => obj.id !== draggedObject.id)
+            );
+          }
+
+          setPlacedObjects((prev) => [
+            ...prev,
+            {
+              ...draggedObject,
+              x: objX,
+              y: objY,
+              shelfId,
+            },
+          ]);
+
+          droppedOnShelf = true;
+        }
+      }
+    });
+
+    if (!droppedOnShelf) {
+      if (draggedObject.wasPlaced) {
+        setPlacedObjects((prev) =>
+          prev.filter((obj) => obj.id !== draggedObject.id)
+        );
+        const { x, y, wasPlaced, originalShelfId, ...cleanObject } = draggedObject;
+        setObjects((prev) => [...prev, cleanObject]);
+      }
+    }
+
+    setDraggedObject(null);
+  }, [draggedObject, units, dragOffset]);
+
+  React.useEffect(() => {
+    if (draggedObject) {
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+      return () => {
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+      };
+    }
+  }, [draggedObject, handleMouseMove, handleMouseUp]);
+
+  const sortedObjects = useMemo(() => {
+    return [...objects].sort((a, b) => {
+      if (a.type !== b.type) return a.type.localeCompare(b.type);
+      if (sortMode === "number") return a.number.localeCompare(b.number);
+      return b.height - a.height;
+    });
+  }, [objects, sortMode]);
+
+  const toggleSortMode = () => {
+    setSortMode((prev) => (prev === "number" ? "height" : "number"));
+  };
+
+  const [hoveredButton, setHoveredButton] = useState(null);
+
+  const buttonStyle = {
+    padding: "8px 16px",
+    border: "2px solid #5B7C99",
+    borderRadius: "6px",
+    background: "linear-gradient(to bottom, #f8f9fa, #e9ecef)",
+    cursor: "pointer",
+    fontSize: "14px",
+    color: "#2C4F6F",
+    fontWeight: "600",
+    transition: "all 0.2s ease",
+    boxShadow: "0 2px 4px rgba(91, 124, 153, 0.2)",
+  };
+
+  const buttonHoverStyle = {
+    background: "linear-gradient(to bottom, #e9ecef, #dee2e6)",
+    borderColor: "#4A6583",
+    boxShadow: "0 3px 6px rgba(91, 124, 153, 0.3)",
+    transform: "translateY(-1px)",
+  };
+
+  const exportReport = () => {
+    let htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Storage Planner Report</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            line-height: 1.6;
+            background-color: #f8f9fa;
+          }
+          h1 {
+            color: #2C4F6F;
+            border-bottom: 3px solid #5B7C99;
+            padding-bottom: 10px;
+          }
+          h2 {
+            color: #4A6583;
+            margin-top: 30px;
+          }
+          h3 {
+            color: #5B7C99;
+            margin-top: 20px;
+          }
+          table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 10px;
+            background-color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          }
+          th, td {
+            border: 1px solid #dee2e6;
+            padding: 8px;
+            text-align: left;
+          }
+          th {
+            background-color: #5B7C99;
+            color: white;
+            font-weight: bold;
+          }
+          tr:nth-child(even) {
+            background-color: #f8f9fa;
+          }
+          .timestamp {
+            color: #6c757d;
+            font-size: 14px;
+          }
+          @media print {
+            body {
+              padding: 10px;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <h1>Storage Planner Report</h1>
+        <p class="timestamp">Generated: ${new Date().toLocaleString()}</p>
+    `;
+
+    units.forEach((unit) => {
+      htmlContent += `<h2>Unit ${unit.id}</h2>`;
+      
+      ["top", "bottom"].forEach((position) => {
+        const shelfId = `${unit.id}-${position}`;
+        const shelfHeight = position === "top" ? unit.topHeight : unit.bottomHeight;
+        const contents = placedObjects.filter((obj) => obj.shelfId === shelfId);
+        
+        htmlContent += `
+          <h3>${position.charAt(0).toUpperCase() + position.slice(1)} Shelf (Height: ${shelfHeight} inches)</h3>
+        `;
+        
+        if (contents.length > 0) {
+          htmlContent += `
+            <table>
+              <thead>
+                <tr>
+                  <th>Number</th>
+                  <th>Type</th>
+                  <th>Object</th>
+                  <th>Height (in)</th>
+                  <th>Width (in)</th>
+                  <th>Depth (in)</th>
+                </tr>
+              </thead>
+              <tbody>
+          `;
+          
+          contents.forEach((obj) => {
+            htmlContent += `
+              <tr>
+                <td>${obj.number}</td>
+                <td>${obj.type}</td>
+                <td>${obj.objectType}</td>
+                <td>${obj.height.toFixed(1)}</td>
+                <td>${obj.width.toFixed(1)}</td>
+                <td>${obj.depth.toFixed(1)}</td>
+              </tr>
+            `;
+          });
+          
+          htmlContent += `
+              </tbody>
+            </table>
+          `;
+        } else {
+          htmlContent += `<p>No items placed on this shelf.</p>`;
+        }
+      });
+    });
+
+    htmlContent += `
+      </body>
+      </html>
+    `;
+
+    const newWindow = window.open('', 'StoragePlannerReport', 'width=800,height=600');
+    if (newWindow) {
+      newWindow.document.write(htmlContent);
+      newWindow.document.close();
+    } else {
+      alert('Please allow pop-ups to view the report.');
+    }
+  };
+
+  const renderObject = (obj, isPlaced, isLibrary = false) => {
+    const widthPx = obj.width * SCALE;
+    const depthPx = obj.depth * SCALE;
+
+    // Use white text if dark color
+    const backgroundColor = colors[obj.type]?.[obj.objectType] || "#ccc";
+    const isDarkColor = (color) => {
+      // Convert hex to RGB and calculate brightness
+      const hex = color.replace('#', '');
+      if (hex.length === 3) {
+        const r = parseInt(hex[0] + hex[0], 16);
+        const g = parseInt(hex[1] + hex[1], 16);
+        const b = parseInt(hex[2] + hex[2], 16);
+        return (r * 0.299 + g * 0.587 + b * 0.114) < 128;
+      } else if (hex.length === 6) {
+        const r = parseInt(hex.substring(0, 2), 16);
+        const g = parseInt(hex.substring(2, 4), 16);
+        const b = parseInt(hex.substring(4, 6), 16);
+        return (r * 0.299 + g * 0.587 + b * 0.114) < 128;
+      }
+      // For HSL colors, check if it contains 'dark' or has low lightness
+      return color.includes('dark') || (color.includes('hsl') && parseInt(color.match(/\d+%\)$/)?.[0] || '50') < 50);
+    };
+    
+    const darkBackground = isDarkColor(backgroundColor);
+    const textColor = darkBackground ? "#fff" : "#000";
+
+    const isDragging = draggedObject && draggedObject.id === obj.id;
+    const opacity = isDragging && isLibrary ? 0 : 1;
+
+    if (isDragging && isPlaced) {
+      return null;
+    }
+
+    const isRotated = obj.width > obj.depth;
+
+    const baseStyle = {
+      width: widthPx,
+      height: depthPx,
+      backgroundColor: backgroundColor,
+      border: "1px solid black",
+      cursor: "grab",
+      userSelect: "none",
+      padding: 4,
+      boxSizing: "border-box",
+      fontSize: 10,
+      color: textColor,
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "space-between",
+      margin: isLibrary ? 4 : 0,
+      borderRadius: 4,
+      boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+      position: isLibrary ? "static" : "absolute",
+      left: !isLibrary && isPlaced ? obj.x : undefined,
+      top: !isLibrary && isPlaced ? obj.y : undefined,
+      opacity: opacity,
+      overflow: "hidden",
+    };
+
+    return (
+      <div
+        key={obj.id}
+        style={baseStyle}
+        onMouseDown={(e) => handleMouseDown(e, obj, isPlaced)}
+        title={`${obj.number} (${obj.height}"H x ${obj.width}"W x ${obj.depth}"D)`}
+      >
+        <div
+          style={{
+            fontWeight: "bold",
+            fontSize: isRotated && depthPx < 60 ? 8 : 10,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            maxWidth: "100%",
+          }}
+        >
+          {obj.number}
+        </div>
+        <div style={{ fontSize: isRotated && depthPx < 60 ? 7 : 9 }}>
+          {(!isRotated || depthPx >= 40) && (
+            <>
+              H: {obj.height.toFixed(1)}
+              <br />
+              W: {obj.width.toFixed(1)}
+              <br />
+              D: {obj.depth.toFixed(1)}
+            </>
+          )}
+          {isRotated && depthPx < 40 && (
+            <span>{obj.width.toFixed(0)}×{obj.depth.toFixed(0)}</span>
+          )}
+        </div>
+        {obj.canRotate && !isDragging && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              rotateObject(obj.id);
+            }}
+            style={{
+              alignSelf: "flex-end",
+              fontSize: isRotated && depthPx < 50 ? 12 : 14,
+              cursor: "pointer",
+              padding: isRotated && depthPx < 50 ? "1px 4px" : "2px 6px",
+              marginTop: 2,
+              border: "1px solid",
+              borderColor: textColor === "#fff" ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.2)",
+              background: textColor === "#fff" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)",
+              color: textColor,
+              borderRadius: "3px",
+              transition: "all 0.2s ease",
+              lineHeight: 1,
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = textColor === "#fff" ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.1)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = textColor === "#fff" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)";
+            }}
+            title="Rotate"
+          >
+            ↻
+          </button>
+        )}
+      </div>
+    );
+  };
+
+  const renderDraggedGhost = () => {
+    if (!draggedObject) return null;
+    
+    const widthPx = draggedObject.width * SCALE;
+    const depthPx = draggedObject.depth * SCALE;
+    // Use white text if dark color
+    const backgroundColor = colors[draggedObject.type]?.[draggedObject.objectType] || "#ccc";
+    const isDarkColor = (color) => {
+      // Convert hex to RGB and calculate brightness
+      const hex = color.replace('#', '');
+      if (hex.length === 3) {
+        const r = parseInt(hex[0] + hex[0], 16);
+        const g = parseInt(hex[1] + hex[1], 16);
+        const b = parseInt(hex[2] + hex[2], 16);
+        return (r * 0.299 + g * 0.587 + b * 0.114) < 128;
+      } else if (hex.length === 6) {
+        const r = parseInt(hex.substring(0, 2), 16);
+        const g = parseInt(hex.substring(2, 4), 16);
+        const b = parseInt(hex.substring(4, 6), 16);
+        return (r * 0.299 + g * 0.587 + b * 0.114) < 128;
+      }
+      // For HSL colors, check if it contains 'dark' or has low lightness
+      return color.includes('dark') || (color.includes('hsl') && parseInt(color.match(/\d+%\)$/)?.[0] || '50') < 50);
+    };
+    
+    const darkBackground = isDarkColor(backgroundColor);
+    const textColor = darkBackground ? "#fff" : "#000";
+    
+    return (
+      <div
+        style={{
+          position: "fixed",
+          pointerEvents: "none",
+          left: draggedObject.x,
+          top: draggedObject.y,
+          zIndex: 1000,
+          width: widthPx,
+          height: depthPx,
+          backgroundColor: backgroundColor,
+          border: "1px solid black",
+          padding: 4,
+          boxSizing: "border-box",
+          fontSize: 10,
+          color: textColor,
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+          borderRadius: 4,
+          boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+          opacity: 0.9,
+        }}
+      >
+        <div
+          style={{
+            fontWeight: "bold",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
+          {draggedObject.number}
+        </div>
+        <div style={{ fontSize: 9 }}>
+          H: {draggedObject.height.toFixed(1)}
+          <br />
+          W: {draggedObject.width.toFixed(1)}
+          <br />
+          D: {draggedObject.depth.toFixed(1)}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        backgroundColor: "#f8f9fa",
+        backgroundImage: `
+          radial-gradient(circle at 10% 20%, rgba(91, 124, 153, 0.03) 0%, transparent 50%),
+          radial-gradient(circle at 80% 80%, rgba(74, 101, 131, 0.03) 0%, transparent 50%),
+          radial-gradient(circle at 40% 60%, rgba(91, 124, 153, 0.02) 0%, transparent 50%)
+        `,
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
+      {/* Title Header */}
+      <div
+        style={{
+          backgroundColor: "#2C4F6F",
+          color: "white",
+          padding: "20px",
+          textAlign: "center",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+          marginBottom: "20px",
+          position: "relative",
+          zIndex: 10,
+        }}
+      >
+        <h1
+          style={{
+            margin: 0,
+            fontSize: "32px",
+            fontWeight: "bold",
+            textShadow: "2px 2px 4px rgba(0,0,0,0.3)",
+          }}
+        >
+          Storage Planner
+        </h1>
+        <p style={{ margin: "8px 0 0 0", opacity: 0.9, fontSize: "16px" }}>
+          Organize and track your storage collection
+        </p>
+      </div>
+
+      {/* Main content */}
+      <div
+        style={{
+          display: "flex",
+          gap: "1rem",
+          fontFamily: "Arial, sans-serif",
+          padding: "0 10px 10px 10px",
+          position: "relative",
+          zIndex: 1,
+        }}
+      >
+        {/* Fixed sidebar for legend and controls */}
+        <div
+          style={{
+            width: 220,
+            position: "sticky",
+            top: 10,
+            height: "calc(100vh - 200px)",
+            overflowY: "auto",
+            border: "2px solid #5B7C99",
+            padding: 12,
+            boxSizing: "border-box",
+            backgroundColor: "#f8f9fa",
+            userSelect: "none",
+            flexShrink: 0,
+            borderRadius: "8px",
+            boxShadow: "0 2px 8px rgba(91, 124, 153, 0.2)",
+          }}
+        >
+          <h3 style={{ 
+            color: "#2C4F6F",
+            borderBottom: "2px solid #5B7C99",
+            paddingBottom: "8px",
+            marginBottom: "16px",
+            fontSize: "18px",
+          }}>
+            Controls
+          </h3>
+          <input
+            type="file"
+            accept=".csv"
+            onChange={handleFileUpload}
+            ref={fileInputRef}
+            style={{ marginBottom: 10 }}
+          />
+          <div style={{ marginBottom: 10 }}>
+            <button 
+              onClick={toggleSortMode} 
+              style={{
+                ...buttonStyle,
+                ...(hoveredButton === 'sort' ? buttonHoverStyle : {}),
+                marginRight: 8
+              }}
+              onMouseEnter={() => setHoveredButton('sort')}
+              onMouseLeave={() => setHoveredButton(null)}
+            >
+              Sort by: {sortMode === "number" ? "Number" : "Height"}
+            </button>
+            <button 
+              onClick={addUnit} 
+              style={{
+                ...buttonStyle,
+                ...(hoveredButton === 'add' ? buttonHoverStyle : {}),
+                marginRight: 8
+              }}
+              onMouseEnter={() => setHoveredButton('add')}
+              onMouseLeave={() => setHoveredButton(null)}
+            >
+              Add Unit
+            </button>
+            <button 
+              onClick={exportReport}
+              style={{
+                ...buttonStyle,
+                ...(hoveredButton === 'export' ? buttonHoverStyle : {})
+              }}
+              onMouseEnter={() => setHoveredButton('export')}
+              onMouseLeave={() => setHoveredButton(null)}
+            >
+              Export Report
+            </button>
+          </div>
+
+          <h4 style={{ color: "#2C4F6F", marginTop: "20px", marginBottom: "12px" }}>
+            Color Legend
+          </h4>
+          {detectedTypes.size === 0 ? (
+            <p style={{ fontSize: 12, color: "#6c757d", fontStyle: "italic" }}>
+              Upload a CSV file to see the color legend
+            </p>
+          ) : (
+            Object.entries(colors).map(([type, objects]) => (
+              <div key={type} style={{ marginBottom: 8 }}>
+                <strong style={{ fontSize: 13 }}>{type}</strong>
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: 4,
+                    marginTop: 4,
+                  }}
+                >
+                  {Object.entries(objects).map(([objectType, color]) => (
+                    <div
+                      key={objectType}
+                      style={{ display: "flex", alignItems: "center", gap: 3 }}
+                    >
+                      <div
+                        style={{
+                          width: 14,
+                          height: 14,
+                          backgroundColor: color,
+                          border: "1px solid #000",
+                        }}
+                      ></div>
+                      <div style={{ fontSize: 11 }}>
+                        {objectType}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Object library */}
+        <div
+          style={{
+            width: 350,
+            height: 600,
+            border: "2px solid #5B7C99",
+            overflowY: "auto",
+            padding: 8,
+            boxSizing: "border-box",
+            backgroundColor: "#ffffff",
+            userSelect: "none",
+            position: "relative",
+            borderRadius: "8px",
+            boxShadow: "0 2px 8px rgba(91, 124, 153, 0.2)",
+          }}
+        >
+          <h3 style={{ 
+            color: "#2C4F6F",
+            borderBottom: "2px solid #5B7C99",
+            paddingBottom: "8px",
+            marginBottom: "12px",
+          }}>
+            Library ({sortedObjects.length})
+          </h3>
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: "8px",
+              minHeight: 300,
+            }}
+          >
+            {sortedObjects.map((obj) => renderObject(obj, false, true))}
+          </div>
+        </div>
+
+        {/* Shelf units and placed objects */}
+        <div
+          style={{
+            flexGrow: 1,
+            overflowY: "auto",
+            maxHeight: 600,
+            position: "relative",
+            backgroundColor: "#ffffff",
+            padding: "16px",
+            borderRadius: "8px",
+            border: "2px solid #5B7C99",
+            boxShadow: "0 2px 8px rgba(91, 124, 153, 0.2)",
+          }}
+        >
+          {units.map((unit) => {
+            const topShelfObjects = placedObjects.filter(
+              (obj) => obj.shelfId === `${unit.id}-top`
+            );
+            const topShelfHeight = unit.topHeight;
+            const topShelfTooTall = topShelfObjects.some(
+              (obj) => obj.height > topShelfHeight
+            );
+
+            const bottomShelfObjects = placedObjects.filter(
+              (obj) => obj.shelfId === `${unit.id}-bottom`
+            );
+            const bottomShelfHeight = unit.bottomHeight;
+            const bottomShelfTooTall = bottomShelfObjects.some(
+              (obj) => obj.height > bottomShelfHeight
+            );
+
+            return (
+              <div key={unit.id} style={{ marginBottom: "2rem" }}>
+                <div style={{ 
+                  color: "#2C4F6F", 
+                  fontSize: "18px", 
+                  fontWeight: "bold",
+                  marginBottom: "12px",
+                }}>
+                  Unit {unit.id}
+                </div>
+
+                <div
+                  className="shelf"
+                  data-shelf-id={`${unit.id}-top`}
+                  style={{
+                    width: SHELF_WIDTH_IN * SCALE,
+                    height: SHELF_DEPTH_IN * SCALE,
+                    border: `3px solid ${topShelfTooTall ? "#e74c3c" : "#7CB342"}`,
+                    position: "relative",
+                    marginBottom: 6,
+                    backgroundColor: topShelfTooTall ? "#ffe6e6" : "#fefefe",
+                    userSelect: "none",
+                    borderRadius: "4px",
+                    boxShadow: "inset 0 2px 4px rgba(0,0,0,0.1)",
+                  }}
+                >
+                  {topShelfObjects.map((obj) => renderObject(obj, true))}
+                </div>
+                <label style={{ color: "#2C4F6F", fontWeight: "500" }}>
+                  📏 Top Shelf Height (inches):&nbsp;
+                  <input
+                    type="number"
+                    min={1}
+                    max={TOTAL_SHELF_HEIGHT - 1}
+                    value={unit.topHeight}
+                    onChange={(e) =>
+                      updateShelfHeight(unit.id, true, e.target.value)
+                    }
+                    style={{ 
+                      width: 60,
+                      padding: "4px 8px",
+                      border: "1px solid #5B7C99",
+                      borderRadius: "4px",
+                      backgroundColor: "#f8f9fa"
+                    }}
+                    title="Top shelf height (vertical in inches)"
+                  />
+                </label>
+
+                <div
+                  className="shelf"
+                  data-shelf-id={`${unit.id}-bottom`}
+                  style={{
+                    width: SHELF_WIDTH_IN * SCALE,
+                    height: SHELF_DEPTH_IN * SCALE,
+                    border: `3px solid ${bottomShelfTooTall ? "#e74c3c" : "#5C9EAD"}`,
+                    position: "relative",
+                    backgroundColor: bottomShelfTooTall ? "#ffe6e6" : "#fefefe",
+                    userSelect: "none",
+                    marginTop: 12,
+                    marginBottom: 6,
+                    borderRadius: "4px",
+                    boxShadow: "inset 0 2px 4px rgba(0,0,0,0.1)",
+                  }}
+                >
+                  {bottomShelfObjects.map((obj) => renderObject(obj, true))}
+                </div>
+                <label style={{ color: "#2C4F6F", fontWeight: "500" }}>
+                  📏 Bottom Shelf Height (inches):&nbsp;
+                  <input
+                    type="number"
+                    min={1}
+                    max={TOTAL_SHELF_HEIGHT - 1}
+                    value={unit.bottomHeight}
+                    onChange={(e) =>
+                      updateShelfHeight(unit.id, false, e.target.value)
+                    }
+                    style={{ 
+                      width: 60,
+                      padding: "4px 8px",
+                      border: "1px solid #5B7C99",
+                      borderRadius: "4px",
+                      backgroundColor: "#f8f9fa"
+                    }}
+                    title="Bottom shelf height (vertical in inches)"
+                  />
+                </label>
+              </div>
+            );
+          })}
+        </div>
+        
+        {/* Render dragged ghost image */}
+        {renderDraggedGhost()}
+      </div>
+    </div>
+  );
+};
+
+export default ShelfPlanner;
