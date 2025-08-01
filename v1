@@ -1,601 +1,419 @@
-import React, { useState, useRef } from "react";
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Shelf Planner</title>
+<style>
+  body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f8f9fa;
+    background-image:
+      radial-gradient(circle at 10% 20%, rgba(91, 124, 153, 0.03) 0%, transparent 50%),
+      radial-gradient(circle at 80% 80%, rgba(74, 101, 131, 0.03) 0%, transparent 50%),
+      radial-gradient(circle at 40% 60%, rgba(91, 124, 153, 0.02) 0%, transparent 50%);
+  }
+  header {
+    background-color: #2C4F6F;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  }
+  header img {
+    height: 40px;
+    object-fit: contain;
+    user-select: none;
+  }
+  header h1 {
+    margin: 0;
+    font-size: 32px;
+    font-weight: bold;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    flex-grow: 1;
+    text-align: center;
+  }
+  main {
+    display: flex;
+    gap: 20px;
+    padding: 20px;
+  }
+  #library, #controls {
+    background: white;
+    border-radius: 6px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    padding: 12px;
+    height: 80vh;
+    overflow-y: auto;
+  }
+  #library {
+    width: 280px;
+  }
+  #controls {
+    width: 180px;
+    display: flex;
+    flex-direction: column;
+  }
+  #shelves {
+    flex-grow: 1;
+    background: white;
+    border-radius: 6px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    padding: 12px;
+    height: 80vh;
+    overflow-y: auto;
+    position: relative;
+  }
+  h2 {
+    margin-top: 0;
+  }
+  button {
+    cursor: pointer;
+    border-radius: 4px;
+    border: 1px solid #5B7C99;
+    background-color: #e6f0ff;
+    color: #2C4F6F;
+    padding: 8px 16px;
+    font-size: 14px;
+    margin-bottom: 10px;
+  }
+  #objects-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .object-item {
+    box-sizing: border-box;
+    border: 1px solid #444;
+    border-radius: 4px;
+    box-shadow: 1px 1px 3px rgba(0,0,0,0.1);
+    padding: 6px;
+    font-weight: bold;
+    font-size: 12px;
+    color: #000;
+    user-select: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    cursor: grab;
+    text-align: center;
+  }
+  .object-info {
+    font-weight: normal;
+    font-size: 10px;
+    white-space: normal;
+  }
+  .shelving-unit {
+    position: relative;
+    margin-bottom: 30px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 10px;
+    min-height: 150px;
+  }
+  .shelf-area {
+    position: relative;
+    border: 1px solid #aaa;
+    background-color: #f0f5f9;
+    overflow: hidden;
+  }
+  .placed-object {
+    position: absolute;
+    border: 1px solid #000;
+    border-radius: 4px;
+    padding: 6px;
+    font-weight: bold;
+    font-size: 12px;
+    color: #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    user-select: none;
+  }
+</style>
+</head>
+<body>
+<header>
+  <img src="https://upload.wikimedia.org/wikipedia/en/thumb/4/47/American_Museum_of_Natural_History_logo.svg/1280px-American_Museum_of_Natural_History_logo.svg.png" alt="AMNH Logo" />
+  <h1>Shelf Planner</h1>
+  <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/IMLS_logo.svg/2560px-IMLS_logo.svg.png" alt="IMLS Logo" />
+</header>
+<main>
+  <section id="library">
+    <h2>Library</h2>
+    <button id="sortBtn" title="Sort by Number">Sort by: Number</button>
+    <div id="objects-list"></div>
+    <input type="file" id="csvFile" accept=".csv" />
+  </section>
+  <section id="controls">
+    <h2>Controls</h2>
+    <button id="addUnitBtn">Add Unit</button>
+    <button id="exportReportBtn">Export Report (Images & Tables)</button>
+    <button id="exportCsvBtn">Export CSV</button>
+  </section>
+  <section id="shelves">
+    <h2>Shelving Units</h2>
+    <div id="shelving-units"></div>
+  </section>
+</main>
 
-const SCALE = 10;
-const SHELF_WIDTH_IN = 36;
-const SHELF_DEPTH_IN = 12;
-const TOTAL_SHELF_HEIGHT = 72;
+<!-- Load html2canvas CDN -->
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
-const colors = {
-  Furniture: {
-    Chair: "#a1c4fd",
-    Table: "#c2e9fb",
-  },
-  Box: {
-    Small: "#fbc7a4",
-    Large: "#f5a623",
-  },
-  // ... your other known types and colors
-};
+<script>
+  const SCALE = 5;
+  const SHELF_WIDTH_IN = 60;
+  const TOTAL_SHELF_HEIGHT = 72;
 
-const ShelfPlanner = () => {
-  const [units, setUnits] = useState([
-    { id: 1, topHeight: 18, bottomHeight: 24 },
-  ]);
-  const [placedObjects, setPlacedObjects] = useState([]);
-  const [sortedObjects, setSortedObjects] = useState([]);
-  const [draggedObject, setDraggedObject] = useState(null);
-  const fileInputRef = useRef(null);
-  const [sortMode, setSortMode] = useState("number");
-  const [hoveredButton, setHoveredButton] = useState(null);
+  const colors = {
+    Box: { Large: "#ffcc80", Small: "#ffe0b2" },
+    Container: { Plastic: "#90caf9", Metal: "#64b5f6" },
+    Other: { Misc: "#b0bec5" },
+  };
 
-  // Get known types from colors keys
-  const knownTypes = Object.keys(colors);
+  let units = [{ id: 1, topHeight: 24, bottomHeight: 36 }];
+  let placedObjects = [];
+  let sortedObjects = [];
+  let sortMode = "number";
 
-  // Your CSV or data parsing function, example:
-  const handleFileUpload = (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
+  const objectsListEl = document.getElementById("objects-list");
+  const shelvingUnitsEl = document.getElementById("shelving-units");
+  const sortBtn = document.getElementById("sortBtn");
+  const addUnitBtn = document.getElementById("addUnitBtn");
+  const exportReportBtn = document.getElementById("exportReportBtn");
+  const exportCsvBtn = document.getElementById("exportCsvBtn");
+  const csvFileInput = document.getElementById("csvFile");
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target.result;
-      // Simple CSV parse example, adapt to your CSV format
-      const lines = text.split("\n").filter(Boolean);
-      const objs = lines.slice(1).map((line) => {
-        const [id, number, height, width, depth, type, objectType, canRotate] = line.split(",");
-        // Clean type string
-        const cleanType = type?.trim();
+  // Helper to create a DOM object item in library or shelf
+  function createObjectElement(obj, isPlaced = false) {
+    const div = document.createElement("div");
+    div.classList.add(isPlaced ? "placed-object" : "object-item");
 
-        // Only assign type if it exists in knownTypes, else undefined
-        const assignedType = knownTypes.includes(cleanType) ? cleanType : undefined;
+    // size in px based on width/depth inches
+    div.style.width = obj.width * SCALE + "px";
+    div.style.height = obj.depth * SCALE + "px";
 
-        return {
-          id: parseInt(id),
-          number: number,
-          height: parseFloat(height),
-          width: parseFloat(width),
-          depth: parseFloat(depth),
-          type: assignedType,
-          objectType: objectType?.trim() || "default",
-          canRotate: canRotate === "true",
-        };
+    // color
+    const bgColor = (colors[obj.type] && colors[obj.type][obj.objectType]) || "#ccc";
+    div.style.backgroundColor = bgColor;
+
+    if (isPlaced) {
+      div.style.top = obj.y + "px";
+      div.style.left = obj.x + "px";
+    }
+
+    div.title = `Number: ${obj.number}`;
+    div.textContent = obj.number;
+
+    if (!isPlaced) {
+      const info = document.createElement("div");
+      info.className = "object-info";
+      info.innerHTML = `H: ${obj.height}"<br>W: ${obj.width}"<br>D: ${obj.depth}"`;
+      div.appendChild(info);
+    }
+    return div;
+  }
+
+  function renderLibrary() {
+    objectsListEl.innerHTML = "";
+    sortedObjects.forEach(obj => {
+      const el = createObjectElement(obj);
+      objectsListEl.appendChild(el);
+    });
+  }
+
+  function renderShelvingUnits() {
+    shelvingUnitsEl.innerHTML = "";
+    units.forEach(unit => {
+      const unitDiv = document.createElement("div");
+      unitDiv.className = "shelving-unit";
+
+      const title = document.createElement("h3");
+      title.textContent = "Shelving Unit " + unit.id;
+      unitDiv.appendChild(title);
+
+      const shelfArea = document.createElement("div");
+      shelfArea.className = "shelf-area";
+      shelfArea.style.width = SHELF_WIDTH_IN * SCALE + "px";
+      shelfArea.style.height = TOTAL_SHELF_HEIGHT * SCALE + "px";
+
+      // Add placed objects for this unit
+      placedObjects
+        .filter(o => o.unitId === unit.id)
+        .forEach(obj => {
+          const objEl = createObjectElement(obj, true);
+          shelfArea.appendChild(objEl);
+        });
+
+      unitDiv.appendChild(shelfArea);
+      shelvingUnitsEl.appendChild(unitDiv);
+    });
+  }
+
+  function sortObjects() {
+    if (sortMode === "number") {
+      sortedObjects.sort((a,b) => a.number.localeCompare(b.number));
+    } else {
+      sortedObjects.sort((a,b) => a.height - b.height);
+    }
+  }
+
+  sortBtn.onclick = () => {
+    sortMode = sortMode === "number" ? "height" : "number";
+    sortBtn.textContent = `Sort by: ${sortMode === "number" ? "Number" : "Height"}`;
+    sortBtn.title = `Sort by ${sortMode === "number" ? "Height" : "Number"}`;
+    sortObjects();
+    renderLibrary();
+  };
+
+  addUnitBtn.onclick = () => {
+    const newId = units.length + 1;
+    units.push({ id: newId, topHeight: 24, bottomHeight: 36 });
+    renderShelvingUnits();
+  };
+
+  // CSV Export
+  exportCsvBtn.onclick = () => {
+    if (sortedObjects.length === 0) {
+      alert("No objects to export!");
+      return;
+    }
+    const header = ["ID", "Number", "Height", "Width", "Depth", "Type", "ObjectType"];
+    const rows = sortedObjects.map(obj => [
+      obj.id, obj.number, obj.height, obj.width, obj.depth, obj.type, obj.objectType
+    ]);
+    const csvContent =
+      "data:text/csv;charset=utf-8," +
+      [header, ...rows].map(e => e.join(",")).join("\n");
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "storage_objects.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Export Report (images + tables)
+  exportReportBtn.onclick = async () => {
+    if (units.length === 0) {
+      alert("No shelving units to export.");
+      return;
+    }
+
+    try {
+      // Capture images of each shelving unit
+      const imagesData = [];
+      for (const unit of units) {
+        const unitEl = [...shelvingUnitsEl.children].find(div => {
+          return div.querySelector("h3")?.textContent === `Shelving Unit ${unit.id}`;
+        });
+        if (!unitEl) continue;
+        const canvas = await html2canvas(unitEl, { backgroundColor: null });
+        imagesData.push(canvas.toDataURL("image/png"));
+      }
+
+      const reportWindow = window.open("", "_blank");
+      if (!reportWindow) {
+        alert("Please allow popups for this site.");
+        return;
+      }
+
+      reportWindow.document.write("<html><head><title>Storage Planner Report</title></head><body>");
+      reportWindow.document.write("<h1>Storage Planner Report</h1>");
+
+      units.forEach((unit, idx) => {
+        reportWindow.document.write(`<h2>Shelving Unit ${unit.id}</h2>`);
+        if (imagesData[idx]) {
+          reportWindow.document.write(
+            `<img src="${imagesData[idx]}" alt="Shelving Unit ${unit.id}" style="max-width:100%;border:1px solid #ccc;margin-bottom:20px;" />`
+          );
+        }
+        reportWindow.document.write("<table border='1' cellpadding='5' cellspacing='0' style='border-collapse: collapse;'>");
+        reportWindow.document.write(
+          "<tr><th>ID</th><th>Number</th><th>Height</th><th>Width</th><th>Depth</th><th>Type</th><th>ObjectType</th></tr>"
+        );
+        const objsInUnit = placedObjects.filter(o => o.unitId === unit.id);
+        objsInUnit.forEach(o => {
+          reportWindow.document.write(
+            `<tr><td>${o.id}</td><td>${o.number}</td><td>${o.height}</td><td>${o.width}</td><td>${o.depth}</td><td>${o.type}</td><td>${o.objectType}</td></tr>`
+          );
+        });
+        reportWindow.document.write("</table>");
       });
+      reportWindow.document.write("</body></html>");
+      reportWindow.document.close();
+    } catch (e) {
+      alert("Failed to generate report: " + e.message);
+    }
+  };
 
-      setSortedObjects(objs);
+  // Load example objects
+  function loadExampleObjects() {
+    // Sample objects with unique IDs and numbers
+    sortedObjects = [
+      { id: 1, number: "001", height: 10, width: 12, depth: 8, type: "Box", objectType: "Large" },
+      { id: 2, number: "002", height: 8, width: 10, depth: 6, type: "Container", objectType: "Plastic" },
+      { id: 3, number: "003", height: 12, width: 14, depth: 10, type: "Box", objectType: "Small" },
+      { id: 4, number: "004", height: 7, width: 9, depth: 6, type: "Container", objectType: "Metal" }
+    ];
+    sortObjects();
+    renderLibrary();
+  }
+
+  // For demo: place objects randomly in units
+  function placeObjectsRandomly() {
+    placedObjects = [];
+    sortedObjects.forEach((obj, idx) => {
+      const unitId = units[(idx % units.length)].id;
+      // place roughly randomly within shelf area
+      obj.x = Math.random() * (SHELF_WIDTH_IN * SCALE - obj.width * SCALE);
+      obj.y = Math.random() * (TOTAL_SHELF_HEIGHT * SCALE - obj.depth * SCALE);
+      obj.unitId = unitId;
+      placedObjects.push({...obj});
+    });
+    renderShelvingUnits();
+  }
+
+  // CSV Import (optional)
+  csvFileInput.addEventListener("change", (evt) => {
+    const file = evt.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const text = e.target.result;
+      parseCsv(text);
     };
     reader.readAsText(file);
-  };
+  });
 
-  const toggleSortMode = () => {
-    setSortMode((prev) => (prev === "number" ? "height" : "number"));
-  };
+  function parseCsv(text) {
+    const lines = text.trim().split("\n");
+    const headers = lines.shift().split(",");
+    sortedObjects = lines.map(line => {
+      const obj = {};
+      const values = line.split(",");
+      headers.forEach((header, i) => {
+        obj[header.trim()] = values[i].trim();
+      });
+      // Convert numbers
+      obj.id = parseInt(obj.id);
+      obj.height = parseFloat(obj.height);
+      obj.width = parseFloat(obj.width);
+      obj.depth = parseFloat(obj.depth);
+      return obj;
+    });
+    sortObjects();
+    renderLibrary();
+  }
 
-  const addUnit = () => {
-    setUnits((prev) => [
-      ...prev,
-      { id: prev.length + 1, topHeight: 18, bottomHeight: 24 },
-    ]);
-  };
-
-  const exportReport = () => {
-    // Your export logic here
-    alert("Export Report feature coming soon.");
-  };
-
-  const updateShelfHeight = (unitId, isTopShelf, value) => {
-    const num = parseInt(value);
-    if (isNaN(num) || num < 1 || num > TOTAL_SHELF_HEIGHT - 1) return;
-
-    setUnits((prev) =>
-      prev.map((u) =>
-        u.id === unitId
-          ? isTopShelf
-            ? { ...u, topHeight: num }
-            : { ...u, bottomHeight: num }
-          : u
-      )
-    );
-  };
-
-  const handleMouseDown = (e, obj, isPlaced) => {
-    // Your drag start logic here
-  };
-
-  const rotateObject = (id) => {
-    // Your rotate logic here
-  };
-
-  const renderObject = (obj, isPlaced = false, isRotated = false) => {
-    const depthPx = obj.depth * SCALE;
-    const textColor = "#000"; // Choose based on background if needed
-    const isDragging = draggedObject?.id === obj.id;
-
-    const baseStyle = {
-      width: obj.width * SCALE,
-      height: obj.depth * SCALE,
-      backgroundColor: colors[obj.type]?.[obj.objectType] || "#ccc",
-      border: "1px solid #333",
-      borderRadius: 4,
-      padding: 4,
-      boxSizing: "border-box",
-      cursor: isPlaced ? "grab" : "pointer",
-      color: textColor,
-      display: "flex",
-      flexDirection: "column",
-      justifyContent: "space-between",
-      userSelect: "none",
-      fontSize: 10,
-      position: "relative",
-    };
-
-    return (
-      <div
-        key={obj.id}
-        style={baseStyle}
-        onMouseDown={(e) => handleMouseDown(e, obj, isPlaced)}
-        title={`${obj.number} (${obj.height}"H x ${obj.width}"W x ${obj.depth}"D)`}
-      >
-        <div
-          style={{
-            fontWeight: "bold",
-            fontSize: isRotated && depthPx < 60 ? 8 : 10,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            maxWidth: "100%",
-          }}
-        >
-          {obj.number}
-        </div>
-        <div style={{ fontSize: isRotated && depthPx < 60 ? 7 : 9 }}>
-          {(!isRotated || depthPx >= 40) && (
-            <>
-              H: {obj.height.toFixed(1)}
-              <br />
-              W: {obj.width.toFixed(1)}
-              <br />
-              D: {obj.depth.toFixed(1)}
-            </>
-          )}
-          {isRotated && depthPx < 40 && (
-            <span>
-              {obj.width.toFixed(0)}×{obj.depth.toFixed(0)}
-            </span>
-          )}
-        </div>
-        {obj.canRotate && !isDragging && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              rotateObject(obj.id);
-            }}
-            style={{
-              alignSelf: "flex-end",
-              fontSize: isRotated && depthPx < 50 ? 12 : 14,
-              cursor: "pointer",
-              padding: isRotated && depthPx < 50 ? "1px 4px" : "2px 6px",
-              marginTop: 2,
-              border: "1px solid",
-              borderColor:
-                textColor === "#fff"
-                  ? "rgba(255,255,255,0.3)"
-                  : "rgba(0,0,0,0.2)",
-              background:
-                textColor === "#fff"
-                  ? "rgba(255,255,255,0.1)"
-                  : "rgba(0,0,0,0.05)",
-              color: textColor,
-              borderRadius: "3px",
-              transition: "all 0.2s ease",
-              lineHeight: 1,
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background =
-                textColor === "#fff"
-                  ? "rgba(255,255,255,0.2)"
-                  : "rgba(0,0,0,0.1)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background =
-                textColor === "#fff"
-                  ? "rgba(255,255,255,0.1)"
-                  : "rgba(0,0,0,0.05)";
-            }}
-            title="Rotate"
-          >
-            ↻
-          </button>
-        )}
-      </div>
-    );
-  };
-
-  const renderDraggedGhost = () => {
-    if (!draggedObject) return null;
-
-    const widthPx = draggedObject.width * SCALE;
-    const depthPx = draggedObject.depth * SCALE;
-
-    const backgroundColor =
-      colors[draggedObject.type]?.[draggedObject.objectType] || "#ccc";
-
-    const isDarkColor = (color) => {
-      const hex = color.replace("#", "");
-      if (hex.length === 3) {
-        const r = parseInt(hex[0] + hex[0], 16);
-        const g = parseInt(hex[1] + hex[1], 16);
-        const b = parseInt(hex[2] + hex[2], 16);
-        return r * 0.299 + g * 0.587 + b * 0.114 < 128;
-      } else if (hex.length === 6) {
-        const r = parseInt(hex.substring(0, 2), 16);
-        const g = parseInt(hex.substring(2, 4), 16);
-        const b = parseInt(hex.substring(4, 6), 16);
-        return r * 0.299 + g * 0.587 + b * 0.114 < 128;
-      }
-      return (
-        color.includes("dark") ||
-        (color.includes("hsl") &&
-          parseInt(color.match(/\d+%\)$/)?.[0] || "50") < 50)
-      );
-    };
-
-    const darkBackground = isDarkColor(backgroundColor);
-    const textColor = darkBackground ? "#fff" : "#000";
-
-    return (
-      <div
-        style={{
-          position: "fixed",
-          pointerEvents: "none",
-          left: draggedObject.x,
-          top: draggedObject.y,
-          zIndex: 1000,
-          width: widthPx,
-          height: depthPx,
-          backgroundColor,
-          border: "1px solid black",
-          padding: 4,
-          boxSizing: "border-box",
-          fontSize: 10,
-          color: textColor,
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-          borderRadius: 4,
-          boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-          opacity: 0.9,
-        }}
-      >
-        <div
-          style={{
-            fontWeight: "bold",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-        >
-          {draggedObject.number}
-        </div>
-        <div style={{ fontSize: 9 }}>
-          H: {draggedObject.height.toFixed(1)}
-          <br />
-          W: {draggedObject.width.toFixed(1)}
-          <br />
-          D: {draggedObject.depth.toFixed(1)}
-        </div>
-      </div>
-    );
-  };
-
-  // Prepare detectedTypes set from sortedObjects for legend
-  const detectedTypes = new Set(
-    sortedObjects
-      .map((obj) => obj.type)
-      .filter((type) => type && knownTypes.includes(type))
-  );
-
-  const buttonStyle = {
-    padding: "6px 12px",
-    borderRadius: 4,
-    border: "1px solid #5B7C99",
-    backgroundColor: "#2C4F6F",
-    color: "white",
-    cursor: "pointer",
-  };
-
-  const buttonHoverStyle = {
-    backgroundColor: "#1b3350",
-  };
-
-  return (
-    <div
-      style={{
-        minHeight: "100vh",
-        backgroundColor: "#f8f9fa",
-        backgroundImage: `
-          radial-gradient(circle at 10% 20%, rgba(91, 124, 153, 0.03) 0%, transparent 50%),
-          radial-gradient(circle at 80% 80%, rgba(74, 101, 131, 0.03) 0%, transparent 50%),
-          radial-gradient(circle at 40% 60%, rgba(91, 124, 153, 0.02) 0%, transparent 50%)
-        `,
-        position: "relative",
-        overflow: "hidden",
-      }}
-    >
-      {/* Title Header */}
-      <div
-        style={{
-          backgroundColor: "#2C4F6F",
-          color: "white",
-          padding: "20px",
-          textAlign: "center",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
-          marginBottom: "20px",
-          position: "relative",
-          zIndex: 10,
-        }}
-      >
-        <h1
-          style={{
-            margin: 0,
-            fontSize: "32px",
-            fontWeight: "bold",
-            textShadow: "2px 2px 4px rgba(0,0,0,0.3)",
-          }}
-        >
-          Storage Planner
-        </h1>
-        <p style={{ margin: "8px 0 0 0", opacity: 0.9, fontSize: "16px" }}>
-          Organize and track your storage collection
-        </p>
-      </div>
-
-      {/* Main content */}
-      <div
-        style={{
-          display: "flex",
-          gap: "1rem",
-          fontFamily: "Arial, sans-serif",
-          padding: "0 10px 10px 10px",
-          position: "relative",
-          zIndex: 1,
-        }}
-      >
-        {/* Fixed sidebar for legend and controls */}
-        <div
-          style={{
-            width: 220,
-            position: "sticky",
-            top: 10,
-            height: "calc(100vh - 200px)",
-            overflowY: "auto",
-            border: "2px solid #5B7C99",
-            padding: 12,
-            boxSizing: "border-box",
-            backgroundColor: "#f8f9fa",
-            userSelect: "none",
-            flexShrink: 0,
-            borderRadius: "8px",
-            boxShadow: "0 2px 8px rgba(91, 124, 153, 0.2)",
-          }}
-        >
-          <h3
-            style={{
-              color: "#2C4F6F",
-              borderBottom: "2px solid #5B7C99",
-              paddingBottom: "8px",
-              marginBottom: "16px",
-              fontSize: "18px",
-            }}
-          >
-            Controls
-          </h3>
-          <input
-            type="file"
-            accept=".csv"
-            onChange={handleFileUpload}
-            ref={fileInputRef}
-            style={{ marginBottom: 10 }}
-          />
-          <div style={{ marginBottom: 10 }}>
-            <button
-              onClick={toggleSortMode}
-              style={{
-                ...buttonStyle,
-                ...(hoveredButton === "sort" ? buttonHoverStyle : {}),
-                marginRight: 8,
-              }}
-              onMouseEnter={() => setHoveredButton("sort")}
-              onMouseLeave={() => setHoveredButton(null)}
-            >
-              Sort by {sortMode === "number" ? "Height" : "Number"}
-            </button>
-            <button
-              onClick={addUnit}
-              style={{
-                ...buttonStyle,
-                ...(hoveredButton === "addUnit" ? buttonHoverStyle : {}),
-              }}
-              onMouseEnter={() => setHoveredButton("addUnit")}
-              onMouseLeave={() => setHoveredButton(null)}
-            >
-              Add Unit
-            </button>
-          </div>
-          <button
-            onClick={exportReport}
-            style={{
-              ...buttonStyle,
-              width: "100%",
-              ...(hoveredButton === "export" ? buttonHoverStyle : {}),
-            }}
-            onMouseEnter={() => setHoveredButton("export")}
-            onMouseLeave={() => setHoveredButton(null)}
-          >
-            Export Report
-          </button>
-
-          <h3
-            style={{
-              color: "#2C4F6F",
-              borderBottom: "2px solid #5B7C99",
-              paddingBottom: "8px",
-              marginTop: 24,
-              marginBottom: 12,
-              fontSize: "18px",
-            }}
-          >
-            Legend
-          </h3>
-          <div
-            style={{
-              maxHeight: 200,
-              overflowY: "auto",
-              paddingRight: 6,
-            }}
-          >
-            {Array.from(detectedTypes).map((type) => (
-              <div
-                key={type}
-                style={{
-                  fontWeight: "bold",
-                  fontSize: 14,
-                  padding: "6px 0 4px 0",
-                  color: "#333",
-                }}
-              >
-                {type}
-                <div style={{ marginLeft: 12, marginTop: 4 }}>
-                  {Object.entries(colors[type]).map(([objectType, color]) => (
-                    <div
-                      key={objectType}
-                      style={{
-                        marginBottom: 4,
-                        fontWeight: "normal",
-                        display: "flex",
-                        alignItems: "center",
-                      }}
-                    >
-                      <div
-                        style={{
-                          backgroundColor: color,
-                          width: 16,
-                          height: 16,
-                          borderRadius: 3,
-                          marginRight: 6,
-                          border: "1px solid #aaa",
-                        }}
-                      />
-                      {objectType}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Main planner area */}
-        <div
-          style={{
-            flexGrow: 1,
-            border: "2px solid #5B7C99",
-            padding: 20,
-            borderRadius: 8,
-            boxShadow: "0 2px 8px rgba(91, 124, 153, 0.2)",
-            overflow: "auto",
-            minHeight: 600,
-            position: "relative",
-            backgroundColor: "white",
-          }}
-        >
-          <h2
-            style={{
-              textAlign: "center",
-              fontWeight: "bold",
-              marginBottom: 16,
-              color: "#2C4F6F",
-            }}
-          >
-            Storage Units & Shelf Planner
-          </h2>
-
-          {/* Units list */}
-          {units.map((unit) => (
-            <div
-              key={unit.id}
-              style={{
-                border: "1px solid #ccc",
-                marginBottom: 20,
-                padding: 12,
-                borderRadius: 6,
-                boxShadow: "inset 0 0 8px #eee",
-                backgroundColor: "#fefefe",
-              }}
-            >
-              <h4 style={{ margin: "0 0 8px 0", color: "#2C4F6F" }}>
-                Unit {unit.id}
-              </h4>
-              <div
-                style={{
-                  display: "flex",
-                  gap: 12,
-                  alignItems: "center",
-                  marginBottom: 12,
-                }}
-              >
-                <label style={{ flexShrink: 0, width: 100, fontWeight: "bold" }}>
-                  Top Shelf Height:
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={TOTAL_SHELF_HEIGHT - 1}
-                  value={unit.topHeight}
-                  onChange={(e) => updateShelfHeight(unit.id, true, e.target.value)}
-                  style={{ width: 80, padding: 6, borderRadius: 4, border: "1px solid #ccc" }}
-                />
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  gap: 12,
-                  alignItems: "center",
-                }}
-              >
-                <label style={{ flexShrink: 0, width: 100, fontWeight: "bold" }}>
-                  Bottom Shelf Height:
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={TOTAL_SHELF_HEIGHT - 1}
-                  value={unit.bottomHeight}
-                  onChange={(e) => updateShelfHeight(unit.id, false, e.target.value)}
-                  style={{ width: 80, padding: 6, borderRadius: 4, border: "1px solid #ccc" }}
-                />
-              </div>
-            </div>
-          ))}
-
-          {/* Render objects here as needed */}
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 12,
-              paddingTop: 10,
-              borderTop: "1px solid #ccc",
-            }}
-          >
-            {sortedObjects.map((obj) => renderObject(obj, false, false))}
-          </div>
-
-          {/* Dragged ghost */}
-          {renderDraggedGhost()}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default ShelfPlanner;
+  // Init
+  loadExampleObjects();
+  placeObjectsRandomly();
+</script>
+</body>
+</html>
