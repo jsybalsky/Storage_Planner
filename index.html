@@ -5,17 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Storage Planner</title>
     <style>
+        * {
+            box-sizing: border-box;
+        }
+        
         body {
             margin: 0;
             padding: 0;
             font-family: Arial, sans-serif;
-            min-height: 100vh;
             background-color: #f8f9fa;
             background-image: 
                 radial-gradient(circle at 10% 20%, rgba(91, 124, 153, 0.03) 0%, transparent 50%),
                 radial-gradient(circle at 80% 80%, rgba(74, 101, 131, 0.03) 0%, transparent 50%),
                 radial-gradient(circle at 40% 60%, rgba(91, 124, 153, 0.02) 0%, transparent 50%);
-            position: relative;
         }
 
         .header {
@@ -25,8 +27,6 @@
             text-align: center;
             box-shadow: 0 2px 8px rgba(0,0,0,0.2);
             margin-bottom: 20px;
-            position: relative;
-            z-index: 10;
         }
 
         .header h1 {
@@ -45,37 +45,37 @@
         .main-content {
             display: flex;
             gap: 1rem;
-            padding: 0 10px 10px 10px;
-            position: relative;
-            z-index: 1;
+            padding: 0 10px 20px 10px;
+            align-items: flex-start;
         }
 
         .controls-panel {
             width: 220px;
-            position: sticky;
-            top: 10px;
-            height: calc(100vh - 200px);
-            max-height: 600px;
+            min-width: 220px;
+            max-width: 220px;
+            height: fit-content;
+            max-height: 80vh;
             overflow-y: auto;
             border: 2px solid #5B7C99;
             padding: 12px;
-            box-sizing: border-box;
             background-color: #f8f9fa;
             user-select: none;
-            flex-shrink: 0;
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(91, 124, 153, 0.2);
+            position: sticky;
+            top: 20px;
         }
 
         .controls-panel h3 {
             color: #2C4F6F;
             border-bottom: 2px solid #5B7C99;
             padding-bottom: 8px;
-            margin-bottom: 16px;
+            margin: 0 0 16px 0;
             font-size: 18px;
         }
 
         .button {
+            display: inline-block;
             padding: 8px 16px;
             border: 2px solid #5B7C99;
             border-radius: 6px;
@@ -86,8 +86,8 @@
             font-weight: 600;
             transition: all 0.2s ease;
             box-shadow: 0 2px 4px rgba(91, 124, 153, 0.2);
-            margin-right: 8px;
-            margin-bottom: 8px;
+            margin: 0 8px 8px 0;
+            text-decoration: none;
         }
 
         .button:hover {
@@ -99,15 +99,15 @@
 
         .library-panel {
             width: 350px;
+            min-width: 350px;
+            max-width: 350px;
             height: 600px;
             max-height: 600px;
             border: 2px solid #5B7C99;
             overflow-y: auto;
             padding: 8px;
-            box-sizing: border-box;
             background-color: #ffffff;
             user-select: none;
-            position: relative;
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(91, 124, 153, 0.2);
         }
@@ -120,6 +120,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            font-size: 16px;
+            font-weight: bold;
         }
 
         .library-objects {
@@ -130,8 +132,8 @@
         }
 
         .shelves-panel {
-            flex-grow: 1;
-            position: relative;
+            flex: 1;
+            min-width: 400px;
             background-color: #ffffff;
             padding: 16px;
             border-radius: 8px;
@@ -140,7 +142,7 @@
         }
 
         .unit {
-            margin-bottom: 2rem;
+            margin-bottom: 3rem;
             page-break-inside: avoid;
         }
 
@@ -161,6 +163,8 @@
         .shelf-input {
             color: #2C4F6F;
             font-weight: 500;
+            display: block;
+            margin: 8px 0;
         }
 
         .shelf-input input {
@@ -169,6 +173,7 @@
             border: 1px solid #5B7C99;
             border-radius: 4px;
             background-color: #f8f9fa;
+            margin-left: 8px;
         }
 
         .object {
@@ -176,7 +181,6 @@
             cursor: grab;
             user-select: none;
             padding: 4px;
-            box-sizing: border-box;
             font-size: 10px;
             display: flex;
             flex-direction: column;
@@ -193,6 +197,10 @@
 
         .object-placed {
             position: absolute;
+        }
+
+        .object:active {
+            cursor: grabbing;
         }
 
         .object-number {
@@ -217,6 +225,11 @@
             line-height: 1;
             z-index: 10;
             position: relative;
+            background: none;
+        }
+
+        .rotate-button:hover {
+            opacity: 0.8;
         }
 
         .dragged-ghost {
@@ -225,7 +238,6 @@
             z-index: 1000;
             border: 1px solid black;
             padding: 4px;
-            box-sizing: border-box;
             font-size: 10px;
             display: flex;
             flex-direction: column;
@@ -237,35 +249,38 @@
 
         .color-legend h4 {
             color: #2C4F6F;
-            margin-top: 20px;
-            margin-bottom: 12px;
+            margin: 20px 0 12px 0;
+            font-size: 16px;
         }
 
         .legend-type {
-            margin-bottom: 8px;
+            margin-bottom: 12px;
         }
 
         .legend-type strong {
             font-size: 13px;
+            display: block;
+            margin-bottom: 4px;
         }
 
         .legend-objects {
             display: flex;
             flex-wrap: wrap;
             gap: 4px;
-            margin-top: 4px;
         }
 
         .legend-item {
             display: flex;
             align-items: center;
             gap: 3px;
+            margin-bottom: 2px;
         }
 
         .legend-color {
             width: 14px;
             height: 14px;
             border: 1px solid #000;
+            flex-shrink: 0;
         }
 
         .legend-label {
@@ -274,13 +289,68 @@
 
         .sort-button {
             font-size: 12px !important;
-            padding: 4px 12px !important;
+            padding: 4px 8px !important;
+            margin: 0 !important;
         }
 
         .no-legend {
             font-size: 12px;
             color: #6c757d;
             font-style: italic;
+            margin: 0;
+            padding: 10px 0;
+        }
+
+        /* Ensure proper file input styling */
+        input[type="file"] {
+            width: 100%;
+            margin-bottom: 10px;
+            padding: 4px;
+            border: 1px solid #5B7C99;
+            border-radius: 4px;
+            background-color: white;
+        }
+
+        /* Media queries for responsiveness */
+        @media (max-width: 1200px) {
+            .main-content {
+                flex-direction: column;
+            }
+            
+            .controls-panel {
+                width: 100%;
+                max-width: none;
+                position: static;
+                height: auto;
+                max-height: none;
+            }
+            
+            .library-panel {
+                width: 100%;
+                max-width: none;
+            }
+            
+            .shelves-panel {
+                min-width: auto;
+            }
+        }
+
+        @media print {
+            .controls-panel,
+            .library-panel {
+                display: none;
+            }
+            
+            .main-content {
+                flex-direction: column;
+            }
+            
+            .shelves-panel {
+                width: 100%;
+                border: none;
+                box-shadow: none;
+                padding: 0;
+            }
         }
     </style>
 </head>
