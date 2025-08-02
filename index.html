@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Storage Planner</title>
+    <title>Configurable Storage Planner</title>
     <style>
         * {
             box-sizing: border-box;
@@ -97,6 +97,42 @@
             transform: translateY(-1px);
         }
 
+        .config-section {
+            background: #fff;
+            border: 1px solid #5B7C99;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 15px;
+        }
+
+        .config-section h4 {
+            margin: 0 0 10px 0;
+            color: #2C4F6F;
+            font-size: 14px;
+        }
+
+        .config-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .config-row label {
+            font-size: 12px;
+            color: #2C4F6F;
+            font-weight: 500;
+        }
+
+        .config-row input {
+            width: 60px;
+            padding: 4px 6px;
+            border: 1px solid #5B7C99;
+            border-radius: 4px;
+            background-color: #f8f9fa;
+            font-size: 12px;
+        }
+
         .library-panel {
             width: 350px;
             min-width: 350px;
@@ -146,11 +182,38 @@
             page-break-inside: avoid;
         }
 
+        .unit-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
         .unit-title {
             color: #2C4F6F;
             font-size: 18px;
             font-weight: bold;
-            margin-bottom: 12px;
+        }
+
+        .unit-config {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            font-size: 12px;
+            color: #2C4F6F;
+        }
+
+        .unit-config label {
+            font-weight: 500;
+        }
+
+        .unit-config input {
+            width: 50px;
+            padding: 3px 5px;
+            border: 1px solid #5B7C99;
+            border-radius: 3px;
+            background-color: #f8f9fa;
+            margin-left: 5px;
         }
 
         .shelf {
@@ -158,6 +221,7 @@
             box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
             position: relative;
             user-select: none;
+            margin-bottom: 8px;
         }
 
         .shelf-input {
@@ -165,15 +229,17 @@
             font-weight: 500;
             display: block;
             margin: 8px 0;
+            font-size: 12px;
         }
 
         .shelf-input input {
-            width: 60px;
-            padding: 4px 8px;
+            width: 50px;
+            padding: 3px 6px;
             border: 1px solid #5B7C99;
             border-radius: 4px;
             background-color: #f8f9fa;
             margin-left: 8px;
+            font-size: 12px;
         }
 
         .object {
@@ -311,6 +377,20 @@
             background-color: white;
         }
 
+        .error-message {
+            color: #dc3545;
+            font-size: 11px;
+            margin-top: 4px;
+            font-style: italic;
+        }
+
+        .total-display {
+            font-size: 11px;
+            color: #6c757d;
+            margin-top: 8px;
+            font-style: italic;
+        }
+
         /* Media queries for responsiveness */
         @media (max-width: 1200px) {
             .main-content {
@@ -356,14 +436,28 @@
 </head>
 <body>
     <div class="header">
-        <h1>Storage Planner</h1>
-        <p>Organize your collection onto 4 x 8 x 8ft adjustable double shelving units, each with two shelves and a total of 74in of usable vertical space. Download a blank template to format your data, then upload to populate the library with your collection. Sort objects in the library by height or by number. Drag and drop objects onto shelves. Add units and adjust the height of the middle shelf as needed. If height is too small for an object you've placed on the shelf, the object will return to the library or the shelf will appear in red. When you are finished, export your results as a CSV and make a PDF of this page. Refresh your browser to clear the shelves and start again.</p>
+        <h1>Configurable Storage Planner</h1>
+        <p>Organize your collection onto customizable shelving units. Configure the number of shelves per unit and total usable height to match your storage needs. Download a blank template to format your data, then upload to populate the library with your collection. Sort objects in the library by height or by number. Drag and drop objects onto shelves. Add units and adjust the height of each shelf as needed. If height is too small for an object you've placed on the shelf, the object will return to the library or the shelf will appear in red. When you are finished, export your results as a CSV and make a PDF of this page. Refresh your browser to clear the shelves and start again.</p>
     </div>
 
     <div class="main-content">
         <!-- Controls Panel -->
         <div class="controls-panel">
             <h3>Controls</h3>
+            
+            <!-- Default Unit Configuration -->
+            <div class="config-section">
+                <h4>Default Unit Settings</h4>
+                <div class="config-row">
+                    <label>Shelves per unit:</label>
+                    <input type="number" id="defaultShelves" min="2" max="10" value="2">
+                </div>
+                <div class="config-row">
+                    <label>Total height (in):</label>
+                    <input type="number" id="defaultHeight" min="12" max="200" value="74">
+                </div>
+            </div>
+
             <input type="file" accept=".csv" id="fileInput" style="margin-bottom: 10px;">
             <div style="margin-bottom: 10px;">
                 <button class="button" id="downloadTemplate">Download Template</button>
@@ -400,10 +494,9 @@
         const SHELF_WIDTH_IN = 96;
         const SHELF_DEPTH_IN = 48;
         const SCALE = 4;
-        const TOTAL_SHELF_HEIGHT = 74;
 
         // State
-        let units = [{ id: 1, topHeight: 37, bottomHeight: 37 }];
+        let units = [];
         let objects = [];
         let placedObjects = [];
         let draggedObject = null;
@@ -411,6 +504,24 @@
         let sortMode = "number";
         let detectedTypes = new Set();
         let detectedObjects = new Set();
+
+        // Initialize with one default unit
+        function initializeDefaultUnit() {
+            const defaultShelves = parseInt(document.getElementById('defaultShelves').value);
+            const defaultHeight = parseInt(document.getElementById('defaultHeight').value);
+            const shelfHeight = Math.floor(defaultHeight / defaultShelves);
+            const shelves = Array(defaultShelves).fill(shelfHeight);
+            
+            // Adjust last shelf to account for rounding
+            const totalUsed = shelves.reduce((sum, h) => sum + h, 0);
+            shelves[shelves.length - 1] += (defaultHeight - totalUsed);
+            
+            units = [{
+                id: 1,
+                totalHeight: defaultHeight,
+                shelves: shelves
+            }];
+        }
 
         // Color generation
         function generateColors() {
@@ -535,17 +646,16 @@
             let csvContent = "Unit,Shelf Position,Shelf Height (inches),Number,Type,Object,Height,Width,Depth\n";
 
             units.forEach((unit) => {
-                ["top", "bottom"].forEach((position) => {
-                    const shelfId = `${unit.id}-${position}`;
-                    const shelfHeight = position === "top" ? unit.topHeight : unit.bottomHeight;
+                unit.shelves.forEach((shelfHeight, shelfIndex) => {
+                    const shelfId = `${unit.id}-${shelfIndex}`;
                     const contents = placedObjects.filter((obj) => obj.shelfId === shelfId);
                     
                     if (contents.length > 0) {
                         contents.forEach((obj) => {
-                            csvContent += `${unit.id},${position},${shelfHeight},${obj.number},${obj.type},${obj.objectType},${obj.height},${obj.width},${obj.depth}\n`;
+                            csvContent += `${unit.id},${shelfIndex + 1},${shelfHeight},${obj.number},${obj.type},${obj.objectType},${obj.height},${obj.width},${obj.depth}\n`;
                         });
                     } else {
-                        csvContent += `${unit.id},${position},${shelfHeight},None,,,,,\n`;
+                        csvContent += `${unit.id},${shelfIndex + 1},${shelfHeight},None,,,,,\n`;
                     }
                 });
             });
@@ -563,21 +673,93 @@
 
         // Add unit
         function addUnit() {
+            const defaultShelves = parseInt(document.getElementById('defaultShelves').value);
+            const defaultHeight = parseInt(document.getElementById('defaultHeight').value);
             const newId = units.length > 0 ? Math.max(...units.map(u => u.id)) + 1 : 1;
-            units.push({ id: newId, topHeight: 37, bottomHeight: 37 });
+            
+            const shelfHeight = Math.floor(defaultHeight / defaultShelves);
+            const shelves = Array(defaultShelves).fill(shelfHeight);
+            
+            // Adjust last shelf to account for rounding
+            const totalUsed = shelves.reduce((sum, h) => sum + h, 0);
+            shelves[shelves.length - 1] += (defaultHeight - totalUsed);
+            
+            units.push({
+                id: newId,
+                totalHeight: defaultHeight,
+                shelves: shelves
+            });
+            render();
+        }
+
+        // Update unit configuration
+        function updateUnitConfig(unitId, shelveCount, totalHeight) {
+            const unit = units.find(u => u.id === unitId);
+            if (!unit) return;
+
+            const shelfHeight = Math.floor(totalHeight / shelveCount);
+            const newShelves = Array(shelveCount).fill(shelfHeight);
+            
+            // Adjust last shelf to account for rounding
+            const totalUsed = newShelves.reduce((sum, h) => sum + h, 0);
+            newShelves[newShelves.length - 1] += (totalHeight - totalUsed);
+            
+            // Remove placed objects from shelves that no longer exist
+            placedObjects = placedObjects.filter(obj => {
+                if (obj.shelfId.startsWith(`${unitId}-`)) {
+                    const shelfIndex = parseInt(obj.shelfId.split('-')[1]);
+                    if (shelfIndex >= shelveCount) {
+                        // Return object to library
+                        const { x, y, shelfId, ...cleanObject } = obj;
+                        objects.push(cleanObject);
+                        return false;
+                    }
+                }
+                return true;
+            });
+            
+            unit.totalHeight = totalHeight;
+            unit.shelves = newShelves;
             render();
         }
 
         // Update shelf height
-        function updateShelfHeight(unitId, isTop, newHeight) {
-            const height = Math.max(1, Math.min(TOTAL_SHELF_HEIGHT - 1, parseInt(newHeight) || 1));
-            units = units.map(unit => 
-                unit.id === unitId
-                    ? isTop
-                        ? { ...unit, topHeight: height, bottomHeight: TOTAL_SHELF_HEIGHT - height }
-                        : { ...unit, topHeight: TOTAL_SHELF_HEIGHT - height, bottomHeight: height }
-                    : unit
-            );
+        function updateShelfHeight(unitId, shelfIndex, newHeight) {
+            const unit = units.find(u => u.id === unitId);
+            if (!unit) return;
+            
+            const height = Math.max(1, parseInt(newHeight) || 1);
+            const oldHeight = unit.shelves[shelfIndex];
+            const difference = height - oldHeight;
+            
+            // Check if we can make this change
+            const currentTotal = unit.shelves.reduce((sum, h) => sum + h, 0);
+            if (currentTotal - oldHeight + height > unit.totalHeight) {
+                // Can't exceed total height
+                return;
+            }
+            
+            unit.shelves[shelfIndex] = height;
+            
+            // Adjust other shelves to maintain total
+            const newTotal = unit.shelves.reduce((sum, h) => sum + h, 0);
+            const remaining = unit.totalHeight - newTotal;
+            
+            if (remaining !== 0) {
+                // Distribute the remaining height among other shelves
+                for (let i = 0; i < unit.shelves.length && remaining !== 0; i++) {
+                    if (i !== shelfIndex) {
+                        const adjustment = Math.min(Math.abs(remaining), remaining > 0 ? Infinity : unit.shelves[i] - 1);
+                        if (remaining > 0) {
+                            unit.shelves[i] += adjustment;
+                        } else {
+                            unit.shelves[i] -= adjustment;
+                        }
+                        remaining -= (remaining > 0 ? adjustment : -adjustment);
+                    }
+                }
+            }
+            
             render();
         }
 
@@ -740,9 +922,9 @@
 
                 if (mouseX >= rect.left && mouseX <= rect.right && mouseY >= rect.top && mouseY <= rect.bottom) {
                     const shelfId = shelf.dataset.shelfId;
-                    const [unitId, position] = shelfId.split("-");
+                    const [unitId, shelfIndex] = shelfId.split("-");
                     const unit = units.find(u => u.id === parseInt(unitId));
-                    const shelfHeight = position === "top" ? unit.topHeight : unit.bottomHeight;
+                    const shelfHeight = unit.shelves[parseInt(shelfIndex)];
 
                     if (draggedObject.height <= shelfHeight) {
                         const objectWidthPx = draggedObject.width * SCALE;
@@ -848,83 +1030,93 @@
                 const unitDiv = document.createElement('div');
                 unitDiv.className = 'unit';
                 
+                // Unit header with configuration
+                const unitHeader = document.createElement('div');
+                unitHeader.className = 'unit-header';
+                
                 const unitTitle = document.createElement('div');
                 unitTitle.className = 'unit-title';
                 unitTitle.textContent = `Unit ${unit.id}`;
-                unitDiv.appendChild(unitTitle);
+                unitHeader.appendChild(unitTitle);
                 
-                // Top shelf
-                const topShelfObjects = placedObjects.filter(obj => obj.shelfId === `${unit.id}-top`);
-                const topShelfTooTall = topShelfObjects.some(obj => obj.height > unit.topHeight);
+                const unitConfig = document.createElement('div');
+                unitConfig.className = 'unit-config';
                 
-                const topShelf = document.createElement('div');
-                topShelf.className = 'shelf';
-                topShelf.dataset.shelfId = `${unit.id}-top`;
-                topShelf.style.width = (SHELF_WIDTH_IN * SCALE) + 'px';
-                topShelf.style.height = (SHELF_DEPTH_IN * SCALE) + 'px';
-                topShelf.style.border = `3px solid ${topShelfTooTall ? "#e74c3c" : "#7CB342"}`;
-                topShelf.style.marginBottom = '6px';
-                topShelf.style.backgroundColor = topShelfTooTall ? "#ffe6e6" : "#fefefe";
+                const shelvesLabel = document.createElement('label');
+                shelvesLabel.textContent = 'Shelves:';
+                const shelvesInput = document.createElement('input');
+                shelvesInput.type = 'number';
+                shelvesInput.min = 2;
+                shelvesInput.max = 10;
+                shelvesInput.value = unit.shelves.length;
+                shelvesInput.addEventListener('change', (e) => {
+                    updateUnitConfig(unit.id, parseInt(e.target.value), unit.totalHeight);
+                });
+                shelvesLabel.appendChild(shelvesInput);
+                unitConfig.appendChild(shelvesLabel);
                 
-                topShelfObjects.forEach(obj => {
-                    const element = createObjectElement(obj, true, false);
-                    topShelf.appendChild(element);
+                const heightLabel = document.createElement('label');
+                heightLabel.textContent = 'Total Height:';
+                const heightInput = document.createElement('input');
+                heightInput.type = 'number';
+                heightInput.min = 12;
+                heightInput.max = 200;
+                heightInput.value = unit.totalHeight;
+                heightInput.addEventListener('change', (e) => {
+                    updateUnitConfig(unit.id, unit.shelves.length, parseInt(e.target.value));
+                });
+                heightLabel.appendChild(heightInput);
+                unitConfig.appendChild(heightLabel);
+                
+                unitHeader.appendChild(unitConfig);
+                unitDiv.appendChild(unitHeader);
+                
+                // Render each shelf
+                unit.shelves.forEach((shelfHeight, shelfIndex) => {
+                    const shelfObjects = placedObjects.filter(obj => obj.shelfId === `${unit.id}-${shelfIndex}`);
+                    const shelfTooTall = shelfObjects.some(obj => obj.height > shelfHeight);
+                    
+                    const shelf = document.createElement('div');
+                    shelf.className = 'shelf';
+                    shelf.dataset.shelfId = `${unit.id}-${shelfIndex}`;
+                    shelf.style.width = (SHELF_WIDTH_IN * SCALE) + 'px';
+                    shelf.style.height = (SHELF_DEPTH_IN * SCALE) + 'px';
+                    shelf.style.border = `3px solid ${shelfTooTall ? "#e74c3c" : "#7CB342"}`;
+                    shelf.style.backgroundColor = shelfTooTall ? "#ffe6e6" : "#fefefe";
+                    
+                    shelfObjects.forEach(obj => {
+                        const element = createObjectElement(obj, true, false);
+                        shelf.appendChild(element);
+                    });
+                    
+                    unitDiv.appendChild(shelf);
+                    
+                    // Shelf height input
+                    const shelfLabel = document.createElement('label');
+                    shelfLabel.className = 'shelf-input';
+                    shelfLabel.innerHTML = `📏 Shelf ${shelfIndex + 1} Height (inches): `;
+                    const shelfInput = document.createElement('input');
+                    shelfInput.type = 'number';
+                    shelfInput.min = 1;
+                    shelfInput.value = shelfHeight;
+                    shelfInput.title = `Shelf ${shelfIndex + 1} height (vertical in inches)`;
+                    shelfInput.addEventListener('change', (e) => {
+                        updateShelfHeight(unit.id, shelfIndex, e.target.value);
+                    });
+                    shelfLabel.appendChild(shelfInput);
+                    unitDiv.appendChild(shelfLabel);
                 });
                 
-                unitDiv.appendChild(topShelf);
-                
-                // Top shelf height input
-                const topLabel = document.createElement('label');
-                topLabel.className = 'shelf-input';
-                topLabel.innerHTML = `📏 Top Shelf Height (inches): `;
-                const topInput = document.createElement('input');
-                topInput.type = 'number';
-                topInput.min = 1;
-                topInput.max = TOTAL_SHELF_HEIGHT - 1;
-                topInput.value = unit.topHeight;
-                topInput.title = "Top shelf height (vertical in inches)";
-                topInput.addEventListener('change', (e) => {
-                    updateShelfHeight(unit.id, true, e.target.value);
-                });
-                topLabel.appendChild(topInput);
-                unitDiv.appendChild(topLabel);
-                
-                // Bottom shelf
-                const bottomShelfObjects = placedObjects.filter(obj => obj.shelfId === `${unit.id}-bottom`);
-                const bottomShelfTooTall = bottomShelfObjects.some(obj => obj.height > unit.bottomHeight);
-                
-                const bottomShelf = document.createElement('div');
-                bottomShelf.className = 'shelf';
-                bottomShelf.dataset.shelfId = `${unit.id}-bottom`;
-                bottomShelf.style.width = (SHELF_WIDTH_IN * SCALE) + 'px';
-                bottomShelf.style.height = (SHELF_DEPTH_IN * SCALE) + 'px';
-                bottomShelf.style.border = `3px solid ${bottomShelfTooTall ? "#e74c3c" : "#5C9EAD"}`;
-                bottomShelf.style.marginTop = '12px';
-                bottomShelf.style.marginBottom = '6px';
-                bottomShelf.style.backgroundColor = bottomShelfTooTall ? "#ffe6e6" : "#fefefe";
-                
-                bottomShelfObjects.forEach(obj => {
-                    const element = createObjectElement(obj, true, false);
-                    bottomShelf.appendChild(element);
-                });
-                
-                unitDiv.appendChild(bottomShelf);
-                
-                // Bottom shelf height input
-                const bottomLabel = document.createElement('label');
-                bottomLabel.className = 'shelf-input';
-                bottomLabel.innerHTML = `📏 Bottom Shelf Height (inches): `;
-                const bottomInput = document.createElement('input');
-                bottomInput.type = 'number';
-                bottomInput.min = 1;
-                bottomInput.max = TOTAL_SHELF_HEIGHT - 1;
-                bottomInput.value = unit.bottomHeight;
-                bottomInput.title = "Bottom shelf height (vertical in inches)";
-                bottomInput.addEventListener('change', (e) => {
-                    updateShelfHeight(unit.id, false, e.target.value);
-                });
-                bottomLabel.appendChild(bottomInput);
-                unitDiv.appendChild(bottomLabel);
+                // Total height display
+                const currentTotal = unit.shelves.reduce((sum, h) => sum + h, 0);
+                const totalDisplay = document.createElement('div');
+                totalDisplay.className = 'total-display';
+                totalDisplay.textContent = `Total: ${currentTotal}/${unit.totalHeight} inches`;
+                if (currentTotal !== unit.totalHeight) {
+                    totalDisplay.className += ' error-message';
+                    totalDisplay.textContent += ' (Heights do not match total!)';
+                }
+                unitDiv.appendChild(totalDisplay);
                 
                 shelvesPanel.appendChild(unitDiv);
             });
@@ -985,7 +1177,8 @@
         document.addEventListener('mousemove', handleMouseMove);
         document.addEventListener('mouseup', handleMouseUp);
 
-        // Initial render
+        // Initialize and render
+        initializeDefaultUnit();
         render();
     </script>
 </body>
