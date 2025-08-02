@@ -197,10 +197,11 @@
 
         .unit-config {
             display: flex;
-            gap: 15px;
+            gap: 10px;
             align-items: center;
             font-size: 12px;
             color: #2C4F6F;
+            flex-wrap: wrap;
         }
 
         .unit-config label {
@@ -437,7 +438,7 @@
 <body>
     <div class="header">
         <h1>Configurable Storage Planner</h1>
-        <p>Organize your collection onto customizable shelving units. Configure the number of shelves per unit and total usable height to match your storage needs. Download a blank template to format your data, then upload to populate the library with your collection. Sort objects in the library by height or by number. Drag and drop objects onto shelves. Add units and adjust the height of each shelf as needed. If height is too small for an object you've placed on the shelf, the object will return to the library or the shelf will appear in red. When you are finished, export your results as a CSV and make a PDF of this page. Refresh your browser to clear the shelves and start again.</p>
+        <p>Organize your collection onto customizable shelving units. Configure the number of shelves per unit, total usable height, width, and depth to match your storage needs. Download a blank template to format your data, then upload to populate the library with your collection. Sort objects in the library by height or by number. Drag and drop objects onto shelves. Add units and adjust the dimensions and height of each shelf as needed. If height is too small for an object you've placed on the shelf, the object will return to the library or the shelf will appear in red. When you are finished, export your results as a CSV and make a PDF of this page. Refresh your browser to clear the shelves and start again.</p>
     </div>
 
     <div class="main-content">
@@ -453,8 +454,16 @@
                     <input type="number" id="defaultShelves" min="2" max="10" value="2">
                 </div>
                 <div class="config-row">
-                    <label>Total height (in):</label>
+                    <label>Total usable height (in):</label>
                     <input type="number" id="defaultHeight" min="12" max="200" value="74">
+                </div>
+                <div class="config-row">
+                    <label>Width (in):</label>
+                    <input type="number" id="defaultWidth" min="12" max="200" value="96">
+                </div>
+                <div class="config-row">
+                    <label>Depth (in):</label>
+                    <input type="number" id="defaultDepth" min="12" max="200" value="48">
                 </div>
             </div>
 
@@ -491,8 +500,6 @@
 
     <script>
         // Constants
-        const SHELF_WIDTH_IN = 96;
-        const SHELF_DEPTH_IN = 48;
         const SCALE = 4;
 
         // State
@@ -509,6 +516,8 @@
         function initializeDefaultUnit() {
             const defaultShelves = parseInt(document.getElementById('defaultShelves').value);
             const defaultHeight = parseInt(document.getElementById('defaultHeight').value);
+            const defaultWidth = parseInt(document.getElementById('defaultWidth').value);
+            const defaultDepth = parseInt(document.getElementById('defaultDepth').value);
             const shelfHeight = Math.floor(defaultHeight / defaultShelves);
             const shelves = Array(defaultShelves).fill(shelfHeight);
             
@@ -519,6 +528,8 @@
             units = [{
                 id: 1,
                 totalHeight: defaultHeight,
+                width: defaultWidth,
+                depth: defaultDepth,
                 shelves: shelves
             }];
         }
@@ -643,7 +654,7 @@
 
         // Export CSV
         function exportCSV() {
-            let csvContent = "Unit,Shelf Position,Shelf Height (inches),Number,Type,Object,Height,Width,Depth\n";
+            let csvContent = "Unit,Shelf Position,Shelf Height (inches),Unit Width,Unit Depth,Number,Type,Object,Height,Width,Depth\n";
 
             units.forEach((unit) => {
                 unit.shelves.forEach((shelfHeight, shelfIndex) => {
@@ -652,10 +663,10 @@
                     
                     if (contents.length > 0) {
                         contents.forEach((obj) => {
-                            csvContent += `${unit.id},${shelfIndex + 1},${shelfHeight},${obj.number},${obj.type},${obj.objectType},${obj.height},${obj.width},${obj.depth}\n`;
+                            csvContent += `${unit.id},${shelfIndex + 1},${shelfHeight},${unit.width},${unit.depth},${obj.number},${obj.type},${obj.objectType},${obj.height},${obj.width},${obj.depth}\n`;
                         });
                     } else {
-                        csvContent += `${unit.id},${shelfIndex + 1},${shelfHeight},None,,,,,\n`;
+                        csvContent += `${unit.id},${shelfIndex + 1},${shelfHeight},${unit.width},${unit.depth},None,,,,,\n`;
                     }
                 });
             });
@@ -675,6 +686,8 @@
         function addUnit() {
             const defaultShelves = parseInt(document.getElementById('defaultShelves').value);
             const defaultHeight = parseInt(document.getElementById('defaultHeight').value);
+            const defaultWidth = parseInt(document.getElementById('defaultWidth').value);
+            const defaultDepth = parseInt(document.getElementById('defaultDepth').value);
             const newId = units.length > 0 ? Math.max(...units.map(u => u.id)) + 1 : 1;
             
             const shelfHeight = Math.floor(defaultHeight / defaultShelves);
@@ -687,13 +700,15 @@
             units.push({
                 id: newId,
                 totalHeight: defaultHeight,
+                width: defaultWidth,
+                depth: defaultDepth,
                 shelves: shelves
             });
             render();
         }
 
         // Update unit configuration
-        function updateUnitConfig(unitId, shelveCount, totalHeight) {
+        function updateUnitConfig(unitId, shelveCount, totalHeight, width, depth) {
             const unit = units.find(u => u.id === unitId);
             if (!unit) return;
 
@@ -719,6 +734,8 @@
             });
             
             unit.totalHeight = totalHeight;
+            unit.width = width || unit.width;
+            unit.depth = depth || unit.depth;
             unit.shelves = newShelves;
             render();
         }
@@ -1050,23 +1067,49 @@
                 shelvesInput.max = 10;
                 shelvesInput.value = unit.shelves.length;
                 shelvesInput.addEventListener('change', (e) => {
-                    updateUnitConfig(unit.id, parseInt(e.target.value), unit.totalHeight);
+                    updateUnitConfig(unit.id, parseInt(e.target.value), unit.totalHeight, unit.width, unit.depth);
                 });
                 shelvesLabel.appendChild(shelvesInput);
                 unitConfig.appendChild(shelvesLabel);
                 
                 const heightLabel = document.createElement('label');
-                heightLabel.textContent = 'Total Height:';
+                heightLabel.textContent = 'Total Usable Height:';
                 const heightInput = document.createElement('input');
                 heightInput.type = 'number';
                 heightInput.min = 12;
                 heightInput.max = 200;
                 heightInput.value = unit.totalHeight;
                 heightInput.addEventListener('change', (e) => {
-                    updateUnitConfig(unit.id, unit.shelves.length, parseInt(e.target.value));
+                    updateUnitConfig(unit.id, unit.shelves.length, parseInt(e.target.value), unit.width, unit.depth);
                 });
                 heightLabel.appendChild(heightInput);
                 unitConfig.appendChild(heightLabel);
+                
+                const widthLabel = document.createElement('label');
+                widthLabel.textContent = 'Width:';
+                const widthInput = document.createElement('input');
+                widthInput.type = 'number';
+                widthInput.min = 12;
+                widthInput.max = 200;
+                widthInput.value = unit.width;
+                widthInput.addEventListener('change', (e) => {
+                    updateUnitConfig(unit.id, unit.shelves.length, unit.totalHeight, parseInt(e.target.value), unit.depth);
+                });
+                widthLabel.appendChild(widthInput);
+                unitConfig.appendChild(widthLabel);
+                
+                const depthLabel = document.createElement('label');
+                depthLabel.textContent = 'Depth:';
+                const depthInput = document.createElement('input');
+                depthInput.type = 'number';
+                depthInput.min = 12;
+                depthInput.max = 200;
+                depthInput.value = unit.depth;
+                depthInput.addEventListener('change', (e) => {
+                    updateUnitConfig(unit.id, unit.shelves.length, unit.totalHeight, unit.width, parseInt(e.target.value));
+                });
+                depthLabel.appendChild(depthInput);
+                unitConfig.appendChild(depthLabel);
                 
                 unitHeader.appendChild(unitConfig);
                 unitDiv.appendChild(unitHeader);
@@ -1079,8 +1122,8 @@
                     const shelf = document.createElement('div');
                     shelf.className = 'shelf';
                     shelf.dataset.shelfId = `${unit.id}-${shelfIndex}`;
-                    shelf.style.width = (SHELF_WIDTH_IN * SCALE) + 'px';
-                    shelf.style.height = (SHELF_DEPTH_IN * SCALE) + 'px';
+                    shelf.style.width = (unit.width * SCALE) + 'px';
+                    shelf.style.height = (unit.depth * SCALE) + 'px';
                     shelf.style.border = `3px solid ${shelfTooTall ? "#e74c3c" : "#7CB342"}`;
                     shelf.style.backgroundColor = shelfTooTall ? "#ffe6e6" : "#fefefe";
                     
@@ -1107,11 +1150,11 @@
                     unitDiv.appendChild(shelfLabel);
                 });
                 
-                // Total height display
+                // Total usable height display
                 const currentTotal = unit.shelves.reduce((sum, h) => sum + h, 0);
                 const totalDisplay = document.createElement('div');
                 totalDisplay.className = 'total-display';
-                totalDisplay.textContent = `Total: ${currentTotal}/${unit.totalHeight} inches`;
+                totalDisplay.textContent = `Total usable height: ${currentTotal}/${unit.totalHeight} inches`;
                 if (currentTotal !== unit.totalHeight) {
                     totalDisplay.className += ' error-message';
                     totalDisplay.textContent += ' (Heights do not match total!)';
