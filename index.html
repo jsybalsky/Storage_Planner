@@ -1,561 +1,922 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Storage Planner</title>
-<style>
-  body {
-    margin: 0;
-    font-family: Arial, sans-serif;
-    background: #f8f9fa;
-  }
-  header {
-    background-color: #2c4f6f;
-    color: white;
-    padding: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-    position: relative;
-  }
-  header h1 {
-    font-size: 32px;
-    font-weight: bold;
-    margin: 0;
-    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-    flex-grow: 1;
-    text-align: center;
-  }
-  .logo {
-    height: 40px;
-    user-select: none;
-  }
-  .logo-left {
-    margin-right: auto;
-  }
-  .logo-right {
-    margin-left: auto;
-  }
-  #main {
-    display: flex;
-    gap: 1rem;
-    padding: 10px;
-  }
-  #controls {
-    width: 220px;
-    background: #f8f9fa;
-    border: 2px solid #5b7c99;
-    border-radius: 8px;
-    padding: 12px;
-    box-sizing: border-box;
-    box-shadow: 0 2px 8px rgba(91,124,153,0.2);
-    user-select: none;
-    height: 600px;
-    overflow-y: auto;
-  }
-  #library {
-    width: 350px;
-    background: white;
-    border: 2px solid #5b7c99;
-    border-radius: 8px;
-    padding: 8px;
-    box-sizing: border-box;
-    box-shadow: 0 2px 8px rgba(91,124,153,0.2);
-    user-select: none;
-    height: 600px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-  }
-  #library h3 {
-    color: #2c4f6f;
-    border-bottom: 2px solid #5b7c99;
-    margin: 0 0 12px 0;
-    padding-bottom: 8px;
-  }
-  #library .sort-container {
-    margin-bottom: 12px;
-    text-align: center;
-  }
-  #library .sort-container button {
-    background: #2c4f6f;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    padding: 6px 12px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-  }
-  #library .sort-container button:hover {
-    background-color: #3b678e;
-  }
-  #library .object-list {
-    flex-grow: 1;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    overflow-y: auto;
-  }
-  .object-card {
-    background: #cce0ff;
-    border-radius: 5px;
-    border: 1px solid #5b7c99;
-    padding: 6px;
-    width: 70px;
-    font-size: 10px;
-    cursor: grab;
-    user-select: none;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    position: relative;
-  }
-  .object-card .number {
-    font-weight: bold;
-    font-size: 12px;
-    margin-bottom: 4px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    width: 100%;
-    text-align: center;
-  }
-  .object-card .dims {
-    font-size: 9px;
-    line-height: 1.2;
-    text-align: center;
-  }
-  #report-buttons {
-    margin-top: 10px;
-    display: flex;
-    gap: 10px;
-    justify-content: center;
-  }
-  #report-buttons button {
-    background: #2c4f6f;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    padding: 6px 12px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-  }
-  #report-buttons button:hover {
-    background-color: #3b678e;
-  }
-  #units {
-    flex-grow: 1;
-    background: white;
-    border: 2px solid #5b7c99;
-    border-radius: 8px;
-    padding: 16px;
-    box-sizing: border-box;
-    box-shadow: 0 2px 8px rgba(91,124,153,0.2);
-    max-height: 600px;
-    overflow-y: auto;
-  }
-  .unit {
-    margin-bottom: 2rem;
-  }
-  .unit h4 {
-    margin: 0 0 12px 0;
-    font-size: 18px;
-    color: #2c4f6f;
-    font-weight: bold;
-  }
-  .shelf {
-    border-radius: 4px;
-    box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
-    margin-bottom: 6px;
-    position: relative;
-  }
-  .shelf.top {
-    border: 3px solid #7cb342;
-    background-color: #fefefe;
-  }
-  .shelf.bottom {
-    border: 3px solid #5c9ead;
-    background-color: #fefefe;
-  }
-  .shelf.too-tall {
-    background-color: #ffe6e6 !important;
-    border-color: #e74c3c !important;
-  }
-  .placed-object {
-    position: absolute;
-    border: 1px solid black;
-    background-color: #90caf9;
-    padding: 2px 4px;
-    font-size: 10px;
-    color: black;
-    border-radius: 3px;
-    box-sizing: border-box;
-    cursor: grab;
-    user-select: none;
-  }
-  label.shelf-height-label {
-    display: block;
-    margin-bottom: 16px;
-    color: #2c4f6f;
-    font-weight: 500;
-  }
-  label.shelf-height-label input {
-    width: 60px;
-    padding: 4px 8px;
-    border: 1px solid #5b7c99;
-    border-radius: 4px;
-    background-color: #f8f9fa;
-    margin-left: 6px;
-  }
-  #file-upload {
-    margin-bottom: 10px;
-    width: 100%;
-  }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Storage Planner</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            min-height: 100vh;
+            background-color: #f8f9fa;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(91, 124, 153, 0.03) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(74, 101, 131, 0.03) 0%, transparent 50%),
+                radial-gradient(circle at 40% 60%, rgba(91, 124, 153, 0.02) 0%, transparent 50%);
+            position: relative;
+        }
+
+        .header {
+            background-color: #2C4F6F;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 32px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            margin: 8px 0 0 0;
+            opacity: 0.9;
+            font-size: 16px;
+        }
+
+        .main-content {
+            display: flex;
+            gap: 1rem;
+            padding: 0 10px 10px 10px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .controls-panel {
+            width: 220px;
+            position: sticky;
+            top: 10px;
+            height: calc(100vh - 200px);
+            max-height: 600px;
+            overflow-y: auto;
+            border: 2px solid #5B7C99;
+            padding: 12px;
+            box-sizing: border-box;
+            background-color: #f8f9fa;
+            user-select: none;
+            flex-shrink: 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(91, 124, 153, 0.2);
+        }
+
+        .controls-panel h3 {
+            color: #2C4F6F;
+            border-bottom: 2px solid #5B7C99;
+            padding-bottom: 8px;
+            margin-bottom: 16px;
+            font-size: 18px;
+        }
+
+        .button {
+            padding: 8px 16px;
+            border: 2px solid #5B7C99;
+            border-radius: 6px;
+            background: linear-gradient(to bottom, #f8f9fa, #e9ecef);
+            cursor: pointer;
+            font-size: 14px;
+            color: #2C4F6F;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(91, 124, 153, 0.2);
+            margin-right: 8px;
+            margin-bottom: 8px;
+        }
+
+        .button:hover {
+            background: linear-gradient(to bottom, #e9ecef, #dee2e6);
+            border-color: #4A6583;
+            box-shadow: 0 3px 6px rgba(91, 124, 153, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .library-panel {
+            width: 350px;
+            height: 600px;
+            max-height: 600px;
+            border: 2px solid #5B7C99;
+            overflow-y: auto;
+            padding: 8px;
+            box-sizing: border-box;
+            background-color: #ffffff;
+            user-select: none;
+            position: relative;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(91, 124, 153, 0.2);
+        }
+
+        .library-header {
+            color: #2C4F6F;
+            border-bottom: 2px solid #5B7C99;
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .library-objects {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            min-height: 300px;
+        }
+
+        .shelves-panel {
+            flex-grow: 1;
+            position: relative;
+            background-color: #ffffff;
+            padding: 16px;
+            border-radius: 8px;
+            border: 2px solid #5B7C99;
+            box-shadow: 0 2px 8px rgba(91, 124, 153, 0.2);
+        }
+
+        .unit {
+            margin-bottom: 2rem;
+            page-break-inside: avoid;
+        }
+
+        .unit-title {
+            color: #2C4F6F;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 12px;
+        }
+
+        .shelf {
+            border-radius: 4px;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+            position: relative;
+            user-select: none;
+        }
+
+        .shelf-input {
+            color: #2C4F6F;
+            font-weight: 500;
+        }
+
+        .shelf-input input {
+            width: 60px;
+            padding: 4px 8px;
+            border: 1px solid #5B7C99;
+            border-radius: 4px;
+            background-color: #f8f9fa;
+        }
+
+        .object {
+            border: 1px solid black;
+            cursor: grab;
+            user-select: none;
+            padding: 4px;
+            box-sizing: border-box;
+            font-size: 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .object-library {
+            margin: 4px;
+            position: static;
+        }
+
+        .object-placed {
+            position: absolute;
+        }
+
+        .object-number {
+            font-weight: bold;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+
+        .object-dimensions {
+            font-size: 9px;
+        }
+
+        .rotate-button {
+            align-self: flex-end;
+            cursor: pointer;
+            margin-top: 2px;
+            border: 1px solid;
+            border-radius: 3px;
+            transition: all 0.2s ease;
+            line-height: 1;
+            z-index: 10;
+            position: relative;
+        }
+
+        .dragged-ghost {
+            position: fixed;
+            pointer-events: none;
+            z-index: 1000;
+            border: 1px solid black;
+            padding: 4px;
+            box-sizing: border-box;
+            font-size: 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            opacity: 0.9;
+        }
+
+        .color-legend h4 {
+            color: #2C4F6F;
+            margin-top: 20px;
+            margin-bottom: 12px;
+        }
+
+        .legend-type {
+            margin-bottom: 8px;
+        }
+
+        .legend-type strong {
+            font-size: 13px;
+        }
+
+        .legend-objects {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-top: 4px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+
+        .legend-color {
+            width: 14px;
+            height: 14px;
+            border: 1px solid #000;
+        }
+
+        .legend-label {
+            font-size: 11px;
+        }
+
+        .sort-button {
+            font-size: 12px !important;
+            padding: 4px 12px !important;
+        }
+
+        .no-legend {
+            font-size: 12px;
+            color: #6c757d;
+            font-style: italic;
+        }
+    </style>
 </head>
 <body>
-
-<header>
-  <img src="https://upload.wikimedia.org/wikipedia/commons/6/66/AMNH_Logo_2018.svg" alt="AMNH Logo" class="logo logo-left" />
-  <h1>Storage Planner</h1>
-  <img src="https://upload.wikimedia.org/wikipedia/commons/2/2e/IMLS_Logo.svg" alt="IMLS Logo" class="logo logo-right" />
-</header>
-
-<div id="main">
-
-  <div id="controls">
-    <h3>Controls</h3>
-    <input type="file" id="file-upload" accept=".csv" />
-    <div id="info-msg" style="font-size: 12px; font-style: italic; color: #666;">Upload CSV to load storage units</div>
-  </div>
-
-  <div id="library">
-    <h3>Library</h3>
-    <div class="sort-container">
-      <button id="sort-btn">Sort by: Number</button>
+    <div class="header">
+        <h1>Storage Planner</h1>
+        <p>Organize your collection onto 4 x 8 x 8ft adjustable double shelves. Model assumes 74in of useable vertical space.</p>
     </div>
-    <div class="object-list" id="object-list"></div>
-    <div id="report-buttons">
-      <button id="export-report-btn">Export Report (PNG)</button>
-      <button id="export-csv-btn">Export CSV</button>
+
+    <div class="main-content">
+        <!-- Controls Panel -->
+        <div class="controls-panel">
+            <h3>Controls</h3>
+            <input type="file" accept=".csv" id="fileInput" style="margin-bottom: 10px;">
+            <div style="margin-bottom: 10px;">
+                <button class="button" id="downloadTemplate">Download Template</button>
+                <button class="button" id="addUnit">Add Unit</button>
+                <button class="button" id="exportCSV">Export CSV</button>
+            </div>
+
+            <div class="color-legend">
+                <h4>Color Legend</h4>
+                <div id="legendContent">
+                    <p class="no-legend">Upload a CSV file to see the color legend</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Library Panel -->
+        <div class="library-panel">
+            <div class="library-header">
+                <span id="libraryTitle">Library (0)</span>
+                <button class="button sort-button" id="sortButton">Sort by: Height</button>
+            </div>
+            <div class="library-objects" id="libraryObjects"></div>
+        </div>
+
+        <!-- Shelves Panel -->
+        <div class="shelves-panel" id="shelvesPanel"></div>
     </div>
-  </div>
 
-  <div id="units"></div>
-</div>
+    <!-- Dragged Ghost (hidden by default) -->
+    <div class="dragged-ghost" id="draggedGhost" style="display: none;"></div>
 
-<!-- html2canvas library for screenshot export -->
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-<script>
-(() => {
-  // Constants
-  const SCALE = 4;  // pixels per inch
-  const SHELF_WIDTH_IN = 36;
-  const SHELF_DEPTH_IN = 18;
-  const TOTAL_SHELF_HEIGHT = 72;
+    <script>
+        // Constants
+        const SHELF_WIDTH_IN = 96;
+        const SHELF_DEPTH_IN = 48;
+        const SCALE = 4;
+        const TOTAL_SHELF_HEIGHT = 74;
 
-  // State
-  let objects = [];
-  let units = [];
-  let sortBy = "number"; // or "height"
+        // State
+        let units = [{ id: 1, topHeight: 37, bottomHeight: 37 }];
+        let objects = [];
+        let placedObjects = [];
+        let draggedObject = null;
+        let dragOffset = { x: 0, y: 0 };
+        let sortMode = "number";
+        let detectedTypes = new Set();
+        let detectedObjects = new Set();
 
-  // Elements
-  const fileInput = document.getElementById('file-upload');
-  const infoMsg = document.getElementById('info-msg');
-  const objectListEl = document.getElementById('object-list');
-  const unitsEl = document.getElementById('units');
-  const sortBtn = document.getElementById('sort-btn');
-  const exportReportBtn = document.getElementById('export-report-btn');
-  const exportCsvBtn = document.getElementById('export-csv-btn');
+        // Color generation
+        function generateColors() {
+            const typeColors = {
+                base: ["#87CEEB", "#90EE90", "#FFB6C1", "#DDA0DD", "#F0E68C", "#B0C4DE"],
+                dark: ["#4682B4", "#228B22", "#FF69B4", "#9370DB", "#DAA520", "#6495ED"],
+                darker: ["#191970", "#006400", "#C71585", "#6A0DAD", "#B8860B", "#4169E1"],
+                light: ["#E0F7FF", "#E6FFE6", "#FFE4E1", "#E6E6FA", "#FFFACD", "#E6F3FF"]
+            };
 
-  // Helper: parse CSV string to array of objects
-  function parseCSV(text) {
-    const lines = text.trim().split('\n');
-    const headers = lines[0].split(',').map(h => h.trim());
-    return lines.slice(1).map(line => {
-      const parts = line.split(',').map(p => p.trim());
-      const obj = {};
-      headers.forEach((h, i) => {
-        obj[h] = parts[i];
-      });
-      return obj;
-    });
-  }
+            const colors = {};
+            const typeArray = Array.from(detectedTypes).sort();
+            
+            typeArray.forEach((type, typeIndex) => {
+                colors[type] = {};
+                const objectArray = Array.from(detectedObjects).sort();
+                
+                objectArray.forEach((obj, objIndex) => {
+                    const colorIndex = typeIndex % typeColors.base.length;
+                    if (objIndex === 0) colors[type][obj] = typeColors.base[colorIndex];
+                    else if (objIndex === 1) colors[type][obj] = typeColors.dark[colorIndex];
+                    else if (objIndex === 2) colors[type][obj] = typeColors.darker[colorIndex];
+                    else if (objIndex === 3) colors[type][obj] = typeColors.light[colorIndex];
+                    else {
+                        const hue = (colorIndex * 60 + objIndex * 15) % 360;
+                        const lightness = 50 + (objIndex % 3) * 15;
+                        colors[type][obj] = `hsl(${hue}, 70%, ${lightness}%)`;
+                    }
+                });
+            });
 
-  // Validate and transform raw CSV data into structured objects and units
-  function processCSVData(data) {
-    objects = [];
-    units = [];
-
-    // Temporary lookup for units by id
-    const unitMap = {};
-
-    data.forEach(row => {
-      // Validate required fields
-      if (!row.id || !row.number || !row.height || !row.width || !row.depth || !row.unitId) return;
-
-      // Convert numeric fields
-      const height = parseFloat(row.height);
-      const width = parseFloat(row.width);
-      const depth = parseFloat(row.depth);
-      const topHeight = parseFloat(row.topHeight);
-      const bottomHeight = parseFloat(row.bottomHeight);
-
-      // Ignore rows with invalid numbers
-      if (isNaN(height) || isNaN(width) || isNaN(depth)) return;
-
-      // Add unit if new
-      if (!unitMap[row.unitId]) {
-        unitMap[row.unitId] = {
-          id: row.unitId,
-          topHeight: !isNaN(topHeight) ? topHeight : TOTAL_SHELF_HEIGHT / 2,
-          bottomHeight: !isNaN(bottomHeight) ? bottomHeight : TOTAL_SHELF_HEIGHT / 2,
-          shelves: []
-        };
-      }
-
-      // Add object
-      objects.push({
-        id: row.id,
-        number: row.number,
-        height,
-        width,
-        depth,
-        unitId: row.unitId,
-      });
-    });
-
-    units = Object.values(unitMap);
-  }
-
-  // Render objects in Library
-  function renderLibraryObjects() {
-    // Sort objects
-    if (sortBy === "number") {
-      objects.sort((a, b) => a.number.localeCompare(b.number));
-    } else if (sortBy === "height") {
-      objects.sort((a, b) => b.height - a.height);
-    }
-
-    objectListEl.innerHTML = '';
-    objects.forEach(obj => {
-      const card = document.createElement('div');
-      card.className = 'object-card';
-      card.title = `${obj.number} (${obj.height}"H x ${obj.width}"W x ${obj.depth}"D)`;
-
-      const numberDiv = document.createElement('div');
-      numberDiv.className = 'number';
-      numberDiv.textContent = obj.number;
-      card.appendChild(numberDiv);
-
-      const dimsDiv = document.createElement('div');
-      dimsDiv.className = 'dims';
-      dimsDiv.innerHTML = `H: ${obj.height.toFixed(1)}<br>W: ${obj.width.toFixed(1)}<br>D: ${obj.depth.toFixed(1)}`;
-      card.appendChild(dimsDiv);
-
-      objectListEl.appendChild(card);
-    });
-  }
-
-  // Render shelving units with shelves and objects
-  function renderUnits() {
-    unitsEl.innerHTML = '';
-
-    units.forEach(unit => {
-      const unitDiv = document.createElement('div');
-      unitDiv.className = 'unit';
-
-      const unitTitle = document.createElement('h4');
-      unitTitle.textContent = `Unit ${unit.id}`;
-      unitDiv.appendChild(unitTitle);
-
-      // Top Shelf
-      const topShelfObjects = objects.filter(o => o.unitId === unit.id && o.shelf === 'top');
-      const topShelfDiv = document.createElement('div');
-      topShelfDiv.className = 'shelf top';
-      topShelfDiv.style.width = `${SHELF_WIDTH_IN * SCALE}px`;
-      topShelfDiv.style.height = `${unit.topHeight * SCALE}px`;
-      topShelfDiv.textContent = "Top Shelf";
-      topShelfDiv.style.position = "relative";
-      unitDiv.appendChild(topShelfDiv);
-
-      // Bottom Shelf
-      const bottomShelfObjects = objects.filter(o => o.unitId === unit.id && o.shelf === 'bottom');
-      const bottomShelfDiv = document.createElement('div');
-      bottomShelfDiv.className = 'shelf bottom';
-      bottomShelfDiv.style.width = `${SHELF_WIDTH_IN * SCALE}px`;
-      bottomShelfDiv.style.height = `${unit.bottomHeight * SCALE}px`;
-      bottomShelfDiv.textContent = "Bottom Shelf";
-      bottomShelfDiv.style.position = "relative";
-      unitDiv.appendChild(bottomShelfDiv);
-
-      unitsEl.appendChild(unitDiv);
-    });
-  }
-
-  // Export report as PNG screenshots of all units + tables
-  async function exportReport() {
-    // Disable export button while exporting
-    exportReportBtn.disabled = true;
-    exportReportBtn.textContent = "Exporting...";
-
-    // For each unit, render image, then table of objects in that unit
-    const images = [];
-
-    for (const unit of units) {
-      // Render unit div separately to a hidden container for screenshot
-      const container = document.createElement('div');
-      container.style.background = 'white';
-      container.style.padding = '20px';
-      container.style.marginBottom = '40px';
-      container.style.width = `${SHELF_WIDTH_IN * SCALE + 40}px`;
-      container.style.border = '2px solid #5b7c99';
-      container.style.borderRadius = '8px';
-
-      // Unit title
-      const title = document.createElement('h3');
-      title.textContent = `Unit ${unit.id}`;
-      title.style.color = '#2c4f6f';
-      container.appendChild(title);
-
-      // Shelves: top + bottom rectangles
-      const topShelf = document.createElement('div');
-      topShelf.style.width = `${SHELF_WIDTH_IN * SCALE}px`;
-      topShelf.style.height = `${unit.topHeight * SCALE}px`;
-      topShelf.style.border = '3px solid #7cb342';
-      topShelf.style.backgroundColor = '#fefefe';
-      topShelf.style.marginBottom = '8px';
-      container.appendChild(topShelf);
-
-      const bottomShelf = document.createElement('div');
-      bottomShelf.style.width = `${SHELF_WIDTH_IN * SCALE}px`;
-      bottomShelf.style.height = `${unit.bottomHeight * SCALE}px`;
-      bottomShelf.style.border = '3px solid #5c9ead';
-      bottomShelf.style.backgroundColor = '#fefefe';
-      container.appendChild(bottomShelf);
-
-      // Use html2canvas to get image of shelves
-      const imgCanvas = await html2canvas(container, { backgroundColor: '#ffffff' });
-      const imgDataUrl = imgCanvas.toDataURL('image/png');
-
-      images.push({ unitId: unit.id, dataUrl: imgDataUrl });
-    }
-
-    // Create report window with images and table
-    const reportWindow = window.open('', '_blank');
-    reportWindow.document.write(`<html><head><title>Export Report</title></head><body>`);
-    reportWindow.document.write(`<h1>Storage Planner Report</h1>`);
-
-    // Add images
-    images.forEach(img => {
-      reportWindow.document.write(`<h2>Unit ${img.unitId}</h2>`);
-      reportWindow.document.write(`<img src="${img.dataUrl}" style="max-width: 600px; border: 1px solid #ccc; margin-bottom: 20px;" />`);
-    });
-
-    // Add table of objects
-    reportWindow.document.write(`<h2>All Objects</h2>`);
-    reportWindow.document.write(`<table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse; font-family: Arial; font-size: 14px;">`);
-    reportWindow.document.write(`<thead><tr><th>Number</th><th>Height</th><th>Width</th><th>Depth</th><th>Unit</th></tr></thead><tbody>`);
-    objects.forEach(obj => {
-      reportWindow.document.write(`<tr>`);
-      reportWindow.document.write(`<td>${obj.number}</td>`);
-      reportWindow.document.write(`<td>${obj.height.toFixed(1)}</td>`);
-      reportWindow.document.write(`<td>${obj.width.toFixed(1)}</td>`);
-      reportWindow.document.write(`<td>${obj.depth.toFixed(1)}</td>`);
-      reportWindow.document.write(`<td>${obj.unitId}</td>`);
-      reportWindow.document.write(`</tr>`);
-    });
-    reportWindow.document.write(`</tbody></table>`);
-
-    reportWindow.document.write(`</body></html>`);
-    reportWindow.document.close();
-
-    exportReportBtn.disabled = false;
-    exportReportBtn.textContent = "Export Report (PNG)";
-  }
-
-  // Export results as CSV file
-  function exportCSV() {
-    if (objects.length === 0) {
-      alert("No objects to export.");
-      return;
-    }
-
-    const headers = ["id","number","height","width","depth","unitId"];
-    const csvRows = [];
-    csvRows.push(headers.join(','));
-
-    objects.forEach(o => {
-      const row = [
-        o.id,
-        o.number,
-        o.height.toFixed(2),
-        o.width.toFixed(2),
-        o.depth.toFixed(2),
-        o.unitId
-      ];
-      csvRows.push(row.join(','));
-    });
-
-    const csvString = csvRows.join('\n');
-    const blob = new Blob([csvString], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'storage_planner_export.csv';
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  // Toggle sorting and rerender library
-  function toggleSort() {
-    if (sortBy === 'number') {
-      sortBy = 'height';
-      sortBtn.textContent = 'Sort by: Height';
-    } else {
-      sortBy = 'number';
-      sortBtn.textContent = 'Sort by: Number';
-    }
-    renderLibraryObjects();
-  }
-
-  // Initialize
-  function init() {
-    sortBtn.addEventListener('click', toggleSort);
-    exportReportBtn.addEventListener('click', exportReport);
-    exportCsvBtn.addEventListener('click', exportCSV);
-
-    fileInput.addEventListener('change', e => {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = evt => {
-        try {
-          const csvData = parseCSV(evt.target.result);
-          processCSVData(csvData);
-          renderLibraryObjects();
-          renderUnits();
-          infoMsg.textContent = `Loaded ${objects.length} objects across ${units.length} units.`;
-        } catch (err) {
-          infoMsg.textContent = 'Error parsing CSV file.';
-          console.error(err);
+            return colors;
         }
-      };
-      reader.readAsText(file);
-    });
-  }
 
-  // Start the app
-  init();
-})();
-</script>
+        // Helper function to check if color is dark
+        function isDarkColor(color) {
+            if (!color) return false;
+            const hex = color.replace('#', '');
+            if (hex.length === 3) {
+                const r = parseInt(hex[0] + hex[0], 16);
+                const g = parseInt(hex[1] + hex[1], 16);
+                const b = parseInt(hex[2] + hex[2], 16);
+                return (r * 0.299 + g * 0.587 + b * 0.114) < 128;
+            } else if (hex.length === 6) {
+                const r = parseInt(hex.substring(0, 2), 16);
+                const g = parseInt(hex.substring(2, 4), 16);
+                const b = parseInt(hex.substring(4, 6), 16);
+                return (r * 0.299 + g * 0.587 + b * 0.114) < 128;
+            }
+            return color.includes('dark') || (color.includes('hsl') && parseInt(color.match(/\d+%\)$/)?.[0] || '50') < 50);
+        }
 
+        // CSV parsing
+        function parseCSV(csvText) {
+            const lines = csvText.trim().split("\n");
+            const headers = lines[0].split(",").map(h => h.trim().toLowerCase());
+
+            const numberIndex = headers.findIndex(h => h.includes("number"));
+            const typeIndex = headers.findIndex(h => h.includes("type"));
+            const objectIndex = headers.findIndex(h => h.includes("object"));
+            const heightIndex = headers.findIndex(h => h.includes("height"));
+            const widthIndex = headers.findIndex(h => h.includes("width"));
+            const depthIndex = headers.findIndex(h => h.includes("depth"));
+
+            detectedTypes.clear();
+            detectedObjects.clear();
+            
+            const parsedObjects = lines.slice(1).map((line, index) => {
+                const values = line.split(",").map(v => v.trim());
+
+                let type = values[typeIndex] || "Other";
+                let objectType = values[objectIndex] || "Unknown";
+                
+                detectedTypes.add(type);
+                detectedObjects.add(objectType);
+
+                return {
+                    id: `obj-${index}`,
+                    number: values[numberIndex] || `Item ${index + 1}`,
+                    height: parseFloat(values[heightIndex]) || 1,
+                    width: parseFloat(values[widthIndex]) || 1,
+                    depth: parseFloat(values[depthIndex]) || 1,
+                    type,
+                    objectType,
+                    canRotate: true,
+                };
+            });
+            
+            return parsedObjects;
+        }
+
+        // File handling
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    objects = parseCSV(e.target.result);
+                    placedObjects = [];
+                    render();
+                };
+                reader.readAsText(file);
+            }
+        }
+
+        // Download template
+        function downloadTemplate() {
+            const templateContent = `number,type,object,height,width,depth`;
+            const blob = new Blob([templateContent], { type: "text/csv" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = "storage_template.csv";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+
+        // Export CSV
+        function exportCSV() {
+            let csvContent = "Unit,Shelf Position,Shelf Height (inches),Number,Type,Object,Height,Width,Depth\n";
+
+            units.forEach((unit) => {
+                ["top", "bottom"].forEach((position) => {
+                    const shelfId = `${unit.id}-${position}`;
+                    const shelfHeight = position === "top" ? unit.topHeight : unit.bottomHeight;
+                    const contents = placedObjects.filter((obj) => obj.shelfId === shelfId);
+                    
+                    if (contents.length > 0) {
+                        contents.forEach((obj) => {
+                            csvContent += `${unit.id},${position},${shelfHeight},${obj.number},${obj.type},${obj.objectType},${obj.height},${obj.width},${obj.depth}\n`;
+                        });
+                    } else {
+                        csvContent += `${unit.id},${position},${shelfHeight},None,,,,,\n`;
+                    }
+                });
+            });
+
+            const blob = new Blob([csvContent], { type: "text/csv" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = `storage-planner-export-${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+
+        // Add unit
+        function addUnit() {
+            const newId = units.length > 0 ? Math.max(...units.map(u => u.id)) + 1 : 1;
+            units.push({ id: newId, topHeight: 37, bottomHeight: 37 });
+            render();
+        }
+
+        // Update shelf height
+        function updateShelfHeight(unitId, isTop, newHeight) {
+            const height = Math.max(1, Math.min(TOTAL_SHELF_HEIGHT - 1, parseInt(newHeight) || 1));
+            units = units.map(unit => 
+                unit.id === unitId
+                    ? isTop
+                        ? { ...unit, topHeight: height, bottomHeight: TOTAL_SHELF_HEIGHT - height }
+                        : { ...unit, topHeight: TOTAL_SHELF_HEIGHT - height, bottomHeight: height }
+                    : unit
+            );
+            render();
+        }
+
+        // Rotate object
+        function rotateObject(objectId) {
+            objects = objects.map(obj => 
+                obj.id === objectId ? { ...obj, width: obj.depth, depth: obj.width } : obj
+            );
+            placedObjects = placedObjects.map(obj => 
+                obj.id === objectId ? { ...obj, width: obj.depth, depth: obj.width } : obj
+            );
+            render();
+        }
+
+        // Sort objects
+        function getSortedObjects() {
+            return [...objects].sort((a, b) => {
+                if (a.type !== b.type) return a.type.localeCompare(b.type);
+                
+                if (sortMode === "number") {
+                    const getNumericPart = (num) => {
+                        const match = num.match(/\d+/);
+                        return match ? parseInt(match[0]) : 0;
+                    };
+                    const numA = getNumericPart(a.number);
+                    const numB = getNumericPart(b.number);
+                    
+                    if (numA && numB) return numA - numB;
+                    return a.number.localeCompare(b.number);
+                } else {
+                    return a.height - b.height;
+                }
+            });
+        }
+
+        // Toggle sort mode
+        function toggleSortMode() {
+            sortMode = sortMode === "number" ? "height" : "number";
+            render();
+        }
+
+        // Create object element
+        function createObjectElement(obj, isPlaced, isLibrary = false) {
+            const colors = generateColors();
+            const widthPx = obj.width * SCALE;
+            const depthPx = obj.depth * SCALE;
+            const backgroundColor = colors[obj.type]?.[obj.objectType] || "#ccc";
+            const darkBackground = isDarkColor(backgroundColor);
+            const textColor = darkBackground ? "#fff" : "#000";
+            const isRotated = obj.width > obj.depth;
+
+            const div = document.createElement('div');
+            div.className = isLibrary ? 'object object-library' : 'object object-placed';
+            div.style.width = widthPx + 'px';
+            div.style.height = depthPx + 'px';
+            div.style.backgroundColor = backgroundColor;
+            div.style.color = textColor;
+            div.title = `${obj.number} (${obj.height}"H x ${obj.width}"W x ${obj.depth}"D)`;
+
+            if (!isLibrary && isPlaced) {
+                div.style.left = obj.x + 'px';
+                div.style.top = obj.y + 'px';
+            }
+
+            // Object number
+            const numberDiv = document.createElement('div');
+            numberDiv.className = 'object-number';
+            numberDiv.style.fontSize = (isRotated && depthPx < 50 ? 8 : 10) + 'px';
+            numberDiv.textContent = obj.number;
+            div.appendChild(numberDiv);
+
+            // Dimensions
+            const dimensionsDiv = document.createElement('div');
+            dimensionsDiv.className = 'object-dimensions';
+            dimensionsDiv.style.fontSize = (isRotated && depthPx < 60 ? 7 : 9) + 'px';
+            
+            if (!isRotated || depthPx >= 40) {
+                dimensionsDiv.innerHTML = `H: ${obj.height.toFixed(1)}<br>W: ${obj.width.toFixed(1)}<br>D: ${obj.depth.toFixed(1)}`;
+            } else {
+                dimensionsDiv.innerHTML = `${obj.width.toFixed(0)}×${obj.depth.toFixed(0)}`;
+            }
+            div.appendChild(dimensionsDiv);
+
+            // Rotate button
+            const rotateBtn = document.createElement('button');
+            rotateBtn.className = 'rotate-button';
+            rotateBtn.innerHTML = '↻';
+            rotateBtn.style.fontSize = (isRotated && depthPx < 50 ? 12 : 14) + 'px';
+            rotateBtn.style.padding = (isRotated && depthPx < 50 ? '1px 4px' : '2px 6px');
+            rotateBtn.style.borderColor = textColor === "#fff" ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.2)";
+            rotateBtn.style.background = textColor === "#fff" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)";
+            rotateBtn.style.color = textColor;
+            rotateBtn.title = "Rotate";
+            
+            rotateBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                rotateObject(obj.id);
+            });
+            
+            rotateBtn.addEventListener('mousedown', (e) => {
+                e.stopPropagation();
+            });
+
+            rotateBtn.addEventListener('mouseenter', () => {
+                rotateBtn.style.background = textColor === "#fff" ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.1)";
+            });
+
+            rotateBtn.addEventListener('mouseleave', () => {
+                rotateBtn.style.background = textColor === "#fff" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)";
+            });
+
+            div.appendChild(rotateBtn);
+
+            // Drag functionality
+            div.addEventListener('mousedown', (e) => handleMouseDown(e, obj, isPlaced));
+
+            return div;
+        }
+
+        // Mouse down handler
+        function handleMouseDown(e, object, isPlaced = false) {
+            e.preventDefault();
+            const rect = e.currentTarget.getBoundingClientRect();
+            draggedObject = {
+                ...object,
+                wasPlaced: isPlaced,
+                originalShelfId: object.shelfId,
+                x: rect.left,
+                y: rect.top,
+            };
+            dragOffset = {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top,
+            };
+            
+            updateDraggedGhost();
+        }
+
+        // Mouse move handler
+        function handleMouseMove(e) {
+            if (!draggedObject) return;
+            const x = e.clientX - dragOffset.x;
+            const y = e.clientY - dragOffset.y;
+            draggedObject.x = x;
+            draggedObject.y = y;
+            updateDraggedGhost();
+        }
+
+        // Mouse up handler
+        function handleMouseUp(e) {
+            if (!draggedObject) return;
+
+            const shelves = document.querySelectorAll(".shelf");
+            let droppedOnShelf = false;
+
+            shelves.forEach((shelf) => {
+                const rect = shelf.getBoundingClientRect();
+                const mouseX = draggedObject.x + dragOffset.x;
+                const mouseY = draggedObject.y + dragOffset.y;
+
+                if (mouseX >= rect.left && mouseX <= rect.right && mouseY >= rect.top && mouseY <= rect.bottom) {
+                    const shelfId = shelf.dataset.shelfId;
+                    const [unitId, position] = shelfId.split("-");
+                    const unit = units.find(u => u.id === parseInt(unitId));
+                    const shelfHeight = position === "top" ? unit.topHeight : unit.bottomHeight;
+
+                    if (draggedObject.height <= shelfHeight) {
+                        const objectWidthPx = draggedObject.width * SCALE;
+                        const objectDepthPx = draggedObject.depth * SCALE;
+
+                        let objX = mouseX - rect.left - dragOffset.x;
+                        let objY = mouseY - rect.top - dragOffset.y;
+
+                        objX = Math.max(0, Math.min(objX, rect.width - objectWidthPx));
+                        objY = Math.max(0, Math.min(objY, rect.height - objectDepthPx));
+
+                        if (draggedObject.wasPlaced) {
+                            placedObjects = placedObjects.filter(obj => obj.id !== draggedObject.id);
+                        } else {
+                            objects = objects.filter(obj => obj.id !== draggedObject.id);
+                        }
+
+                        placedObjects.push({
+                            ...draggedObject,
+                            x: objX,
+                            y: objY,
+                            shelfId,
+                        });
+
+                        droppedOnShelf = true;
+                    }
+                }
+            });
+
+            if (!droppedOnShelf && draggedObject.wasPlaced) {
+                placedObjects = placedObjects.filter(obj => obj.id !== draggedObject.id);
+                const { x, y, wasPlaced, originalShelfId, ...cleanObject } = draggedObject;
+                objects.push(cleanObject);
+            }
+
+            draggedObject = null;
+            document.getElementById('draggedGhost').style.display = 'none';
+            render();
+        }
+
+        // Update dragged ghost
+        function updateDraggedGhost() {
+            if (!draggedObject) return;
+            
+            const colors = generateColors();
+            const ghost = document.getElementById('draggedGhost');
+            const widthPx = draggedObject.width * SCALE;
+            const depthPx = draggedObject.depth * SCALE;
+            const backgroundColor = colors[draggedObject.type]?.[draggedObject.objectType] || "#ccc";
+            const darkBackground = isDarkColor(backgroundColor);
+            const textColor = darkBackground ? "#fff" : "#000";
+            
+            ghost.style.display = 'block';
+            ghost.style.left = draggedObject.x + 'px';
+            ghost.style.top = draggedObject.y + 'px';
+            ghost.style.width = widthPx + 'px';
+            ghost.style.height = depthPx + 'px';
+            ghost.style.backgroundColor = backgroundColor;
+            ghost.style.color = textColor;
+            
+            ghost.innerHTML = `
+                <div style="font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                    ${draggedObject.number}
+                </div>
+                <div style="font-size: 9px;">
+                    H: ${draggedObject.height.toFixed(1)}<br>
+                    W: ${draggedObject.width.toFixed(1)}<br>
+                    D: ${draggedObject.depth.toFixed(1)}
+                </div>
+            `;
+        }
+
+        // Render function
+        function render() {
+            renderLibrary();
+            renderShelves();
+            renderColorLegend();
+        }
+
+        // Render library
+        function renderLibrary() {
+            const sortedObjects = getSortedObjects();
+            const libraryTitle = document.getElementById('libraryTitle');
+            const libraryObjects = document.getElementById('libraryObjects');
+            const sortButton = document.getElementById('sortButton');
+            
+            libraryTitle.textContent = `Library (${sortedObjects.length})`;
+            sortButton.textContent = `Sort by: ${sortMode === "number" ? "Height" : "Number"}`;
+            
+            libraryObjects.innerHTML = '';
+            sortedObjects.forEach(obj => {
+                const element = createObjectElement(obj, false, true);
+                libraryObjects.appendChild(element);
+            });
+        }
+
+        // Render shelves
+        function renderShelves() {
+            const shelvesPanel = document.getElementById('shelvesPanel');
+            shelvesPanel.innerHTML = '';
+            
+            units.forEach(unit => {
+                const unitDiv = document.createElement('div');
+                unitDiv.className = 'unit';
+                
+                const unitTitle = document.createElement('div');
+                unitTitle.className = 'unit-title';
+                unitTitle.textContent = `Unit ${unit.id}`;
+                unitDiv.appendChild(unitTitle);
+                
+                // Top shelf
+                const topShelfObjects = placedObjects.filter(obj => obj.shelfId === `${unit.id}-top`);
+                const topShelfTooTall = topShelfObjects.some(obj => obj.height > unit.topHeight);
+                
+                const topShelf = document.createElement('div');
+                topShelf.className = 'shelf';
+                topShelf.dataset.shelfId = `${unit.id}-top`;
+                topShelf.style.width = (SHELF_WIDTH_IN * SCALE) + 'px';
+                topShelf.style.height = (SHELF_DEPTH_IN * SCALE) + 'px';
+                topShelf.style.border = `3px solid ${topShelfTooTall ? "#e74c3c" : "#7CB342"}`;
+                topShelf.style.marginBottom = '6px';
+                topShelf.style.backgroundColor = topShelfTooTall ? "#ffe6e6" : "#fefefe";
+                
+                topShelfObjects.forEach(obj => {
+                    const element = createObjectElement(obj, true, false);
+                    topShelf.appendChild(element);
+                });
+                
+                unitDiv.appendChild(topShelf);
+                
+                // Top shelf height input
+                const topLabel = document.createElement('label');
+                topLabel.className = 'shelf-input';
+                topLabel.innerHTML = `📏 Top Shelf Height (inches): `;
+                const topInput = document.createElement('input');
+                topInput.type = 'number';
+                topInput.min = 1;
+                topInput.max = TOTAL_SHELF_HEIGHT - 1;
+                topInput.value = unit.topHeight;
+                topInput.title = "Top shelf height (vertical in inches)";
+                topInput.addEventListener('change', (e) => {
+                    updateShelfHeight(unit.id, true, e.target.value);
+                });
+                topLabel.appendChild(topInput);
+                unitDiv.appendChild(topLabel);
+                
+                // Bottom shelf
+                const bottomShelfObjects = placedObjects.filter(obj => obj.shelfId === `${unit.id}-bottom`);
+                const bottomShelfTooTall = bottomShelfObjects.some(obj => obj.height > unit.bottomHeight);
+                
+                const bottomShelf = document.createElement('div');
+                bottomShelf.className = 'shelf';
+                bottomShelf.dataset.shelfId = `${unit.id}-bottom`;
+                bottomShelf.style.width = (SHELF_WIDTH_IN * SCALE) + 'px';
+                bottomShelf.style.height = (SHELF_DEPTH_IN * SCALE) + 'px';
+                bottomShelf.style.border = `3px solid ${bottomShelfTooTall ? "#e74c3c" : "#5C9EAD"}`;
+                bottomShelf.style.marginTop = '12px';
+                bottomShelf.style.marginBottom = '6px';
+                bottomShelf.style.backgroundColor = bottomShelfTooTall ? "#ffe6e6" : "#fefefe";
+                
+                bottomShelfObjects.forEach(obj => {
+                    const element = createObjectElement(obj, true, false);
+                    bottomShelf.appendChild(element);
+                });
+                
+                unitDiv.appendChild(bottomShelf);
+                
+                // Bottom shelf height input
+                const bottomLabel = document.createElement('label');
+                bottomLabel.className = 'shelf-input';
+                bottomLabel.innerHTML = `📏 Bottom Shelf Height (inches): `;
+                const bottomInput = document.createElement('input');
+                bottomInput.type = 'number';
+                bottomInput.min = 1;
+                bottomInput.max = TOTAL_SHELF_HEIGHT - 1;
+                bottomInput.value = unit.bottomHeight;
+                bottomInput.title = "Bottom shelf height (vertical in inches)";
+                bottomInput.addEventListener('change', (e) => {
+                    updateShelfHeight(unit.id, false, e.target.value);
+                });
+                bottomLabel.appendChild(bottomInput);
+                unitDiv.appendChild(bottomLabel);
+                
+                shelvesPanel.appendChild(unitDiv);
+            });
+        }
+
+        // Render color legend
+        function renderColorLegend() {
+            const legendContent = document.getElementById('legendContent');
+            
+            if (detectedTypes.size === 0) {
+                legendContent.innerHTML = '<p class="no-legend">Upload a CSV file to see the color legend</p>';
+                return;
+            }
+            
+            const colors = generateColors();
+            legendContent.innerHTML = '';
+            
+            Object.entries(colors).forEach(([type, objects]) => {
+                const typeDiv = document.createElement('div');
+                typeDiv.className = 'legend-type';
+                
+                const typeStrong = document.createElement('strong');
+                typeStrong.textContent = type;
+                typeDiv.appendChild(typeStrong);
+                
+                const objectsDiv = document.createElement('div');
+                objectsDiv.className = 'legend-objects';
+                
+                Object.entries(objects).forEach(([objectType, color]) => {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'legend-item';
+                    
+                    const colorDiv = document.createElement('div');
+                    colorDiv.className = 'legend-color';
+                    colorDiv.style.backgroundColor = color;
+                    itemDiv.appendChild(colorDiv);
+                    
+                    const labelDiv = document.createElement('div');
+                    labelDiv.className = 'legend-label';
+                    labelDiv.textContent = objectType;
+                    itemDiv.appendChild(labelDiv);
+                    
+                    objectsDiv.appendChild(itemDiv);
+                });
+                
+                typeDiv.appendChild(objectsDiv);
+                legendContent.appendChild(typeDiv);
+            });
+        }
+
+        // Event listeners
+        document.getElementById('fileInput').addEventListener('change', handleFileUpload);
+        document.getElementById('downloadTemplate').addEventListener('click', downloadTemplate);
+        document.getElementById('addUnit').addEventListener('click', addUnit);
+        document.getElementById('exportCSV').addEventListener('click', exportCSV);
+        document.getElementById('sortButton').addEventListener('click', toggleSortMode);
+        
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+
+        // Initial render
+        render();
+    </script>
 </body>
 </html>
